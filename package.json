@@ -1,0 +1,25 @@
+{
+  "name": "smart-ultrawide-video",
+  "version": "0.5.6",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "postinstall": "wxt prepare",
+    "dev": "wxt",
+    "build": "wxt build",
+    "zip": "wxt zip",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
+    "test:watch": "vitest"
+  },
+  "devDependencies": {
+    "@types/node": "latest",
+    "@vitest/coverage-v8": "latest",
+    "happy-dom": "latest",
+    "typescript": "^5.9.2",
+    "vitest": "latest",
+    "wxt": "latest"
+  },
+  "packageManager": "pnpm@11.19.0"
+}

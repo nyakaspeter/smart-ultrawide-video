@@ -1,0 +1,58 @@
+:root {
+  color-scheme: dark;
+  font: 13px/1.45 system-ui, sans-serif;
+  background: #111318;
+  color: #f3f5f7;
+}
+
+body {
+  margin: 0;
+  min-width: 300px;
+}
+
+main {
+  padding: 16px;
+}
+
+h1 {
+  margin: 0 0 10px;
+  font-size: 16px;
+}
+
+.toggle-row,
+.control {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 0 0 12px;
+  padding: 9px 10px;
+  border-radius: 8px;
+  background: #20242c;
+  font-weight: 600;
+}
+
+.toggle-row input {
+  width: 36px;
+  height: 20px;
+  margin: 0;
+  accent-color: #4ade80;
+}
+
+.control {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px 12px;
+  font-weight: 600;
+}
+
+.control output {
+  color: #b7e4c7;
+  font-variant-numeric: tabular-nums;
+}
+
+.control input[type='range'] {
+  grid-column: 1 / -1;
+  width: 100%;
+  box-sizing: border-box;
+  accent-color: #4ade80;
+}

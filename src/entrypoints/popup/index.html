@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart Ultrawide Video</title>
+    <link rel="stylesheet" href="./style.css">
+  </head>
+  <body>
+    <main>
+      <h1>Smart Ultrawide Video</h1>
+      <label class="toggle-row" for="enabled">
+        <span>Enabled</span>
+        <input id="enabled" type="checkbox" role="switch">
+      </label>
+      <label class="control" for="zoom-tolerance">
+        <span>Zoom change tolerance</span>
+        <output id="zoom-tolerance-value" for="zoom-tolerance">10%</output>
+        <input id="zoom-tolerance" type="range" min="0" max="20" step="0.5" value="10">
+      </label>
+      <label class="control" for="analysis-frequency">
+        <span>Frame analysis frequency</span>
+        <output id="analysis-frequency-value" for="analysis-frequency">5/s</output>
+        <input id="analysis-frequency" type="range" min="0" max="10" step="1" value="5">
+      </label>
+    </main>
+    <script type="module" src="./main.ts"></script>
+  </body>
+</html>
