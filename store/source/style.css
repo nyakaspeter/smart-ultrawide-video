@@ -1,0 +1,421 @@
+* {
+  box-sizing: border-box;
+}
+
+:root {
+  color-scheme: dark;
+  font-family: "Bahnschrift", "Segoe UI Variable", "Segoe UI", sans-serif;
+  background: #050c16;
+  color: #effaff;
+}
+
+html,
+body,
+.artboard,
+.scene {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  overflow: hidden;
+}
+
+body {
+  background: #050c16;
+}
+
+.scene {
+  position: relative;
+  isolation: isolate;
+  background:
+    radial-gradient(circle at 89% 5%, rgb(31 241 177 / 19%), transparent 34%),
+    radial-gradient(circle at 7% 72%, rgb(18 134 255 / 24%), transparent 38%),
+    linear-gradient(135deg, #06101d, #071b2d 54%, #071421);
+}
+
+.scene::before {
+  position: absolute;
+  z-index: -1;
+  inset: 0;
+  background-image:
+    linear-gradient(rgb(66 210 255 / 4%) 1px, transparent 1px),
+    linear-gradient(90deg, rgb(66 210 255 / 4%) 1px, transparent 1px);
+  background-size: 48px 48px;
+  content: "";
+  mask-image: linear-gradient(to bottom, black, transparent 85%);
+}
+
+.masthead {
+  position: absolute;
+  top: 42px;
+  right: 54px;
+  left: 54px;
+  display: flex;
+  align-items: center;
+}
+
+.brand-lockup {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  font-size: 20px;
+  font-stretch: condensed;
+  font-weight: 680;
+  letter-spacing: 0.035em;
+}
+
+.brand-lockup img {
+  width: 42px;
+  height: 42px;
+  filter: drop-shadow(0 8px 18px rgb(0 190 255 / 25%));
+}
+
+.eyebrow {
+  margin: 0 0 13px;
+  color: #1fdbff;
+  font-size: 14px;
+  font-weight: 750;
+  letter-spacing: 0.22em;
+}
+
+.hero-copy {
+  position: absolute;
+  top: 142px;
+  left: 68px;
+  width: 650px;
+}
+
+.hero-copy h1,
+.settings-copy h1 {
+  margin: 0;
+  font-size: 56px;
+  font-stretch: condensed;
+  font-weight: 720;
+  letter-spacing: -0.035em;
+  line-height: 0.98;
+}
+
+h1 em {
+  color: #31efb8;
+  font-style: normal;
+}
+
+.hero-copy > p:last-child,
+.settings-copy > p:not(.eyebrow) {
+  max-width: 590px;
+  margin: 22px 0 0;
+  color: #a9c0d0;
+  font-size: 19px;
+  line-height: 1.45;
+}
+
+.comparison {
+  position: absolute;
+  right: 52px;
+  bottom: 46px;
+  left: 52px;
+  display: grid;
+  grid-template-columns: 1fr 58px 1fr;
+  align-items: center;
+  gap: 12px;
+}
+
+.comparison article {
+  min-width: 0;
+}
+
+.comparison-label {
+  display: inline-block;
+  margin: 0 0 4px 4px;
+  color: #718b9e;
+  font-size: 15px;
+  font-weight: 750;
+  letter-spacing: 0.16em;
+}
+
+.comparison-label.active {
+  color: #27eab1;
+}
+
+.comparison-description {
+  display: block;
+  margin: 0 0 10px 4px;
+  color: #9bb3c4;
+  font-size: 14px;
+  font-weight: 540;
+}
+
+.comparison-arrow {
+  position: relative;
+  width: 50px;
+  height: 34px;
+  margin: 30px auto 0;
+  color: transparent;
+  font-size: 0;
+}
+
+.comparison-arrow::before {
+  position: absolute;
+  top: 15px;
+  left: 4px;
+  width: 38px;
+  height: 5px;
+  border-radius: 999px;
+  background: #3ca58f;
+  box-shadow: 0 0 10px rgb(32 176 148 / 18%);
+  content: "";
+}
+
+.comparison-arrow::after {
+  position: absolute;
+  top: 9px;
+  right: 4px;
+  width: 13px;
+  height: 13px;
+  border-top: 5px solid #3ca58f;
+  border-right: 5px solid #3ca58f;
+  content: "";
+  transform: rotate(45deg);
+}
+
+.monitor {
+  position: relative;
+  z-index: 0;
+  padding-bottom: 29px;
+}
+
+.monitor::before {
+  position: absolute;
+  z-index: -1;
+  bottom: 9px;
+  left: 50%;
+  width: 14px;
+  height: 24px;
+  border: 1px solid rgb(126 174 198 / 32%);
+  background: linear-gradient(90deg, #243d50, #66869a 48%, #21394a);
+  box-shadow: 0 5px 12px rgb(0 0 0 / 35%);
+  content: "";
+  transform: translateX(-50%);
+}
+
+.monitor::after {
+  position: absolute;
+  bottom: 3px;
+  left: 50%;
+  width: 96px;
+  height: 8px;
+  border: 1px solid rgb(126 174 198 / 26%);
+  border-radius: 50% 50% 4px 4px;
+  background: linear-gradient(to bottom, #6e8999, #1b2e3c);
+  box-shadow: 0 8px 15px rgb(0 0 0 / 40%);
+  content: "";
+  transform: translateX(-50%);
+}
+
+.ultrawide-screen {
+  position: relative;
+  height: 202px;
+  overflow: hidden;
+  border: 5px solid #172b3a;
+  border-radius: 13px;
+  background: #010306;
+  box-shadow: 0 22px 50px rgb(0 0 0 / 36%), 0 0 0 1px rgb(89 188 222 / 18%), inset 0 0 0 1px rgb(255 255 255 / 4%);
+}
+
+.encoded-video {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  aspect-ratio: 16 / 9;
+  background: #000;
+  transform: translateX(-50%);
+}
+
+.before-screen .cinema-picture {
+  position: absolute;
+  top: 15.6%;
+  right: 0;
+  bottom: 15.6%;
+  left: 0;
+}
+
+.after-screen .cinema-picture {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  aspect-ratio: 21 / 9;
+  transform: translateX(-50%);
+}
+
+.cinema-picture {
+  overflow: hidden;
+  background: #06111e url("./cinematic-still.png") center / cover no-repeat;
+}
+
+.settings-copy {
+  position: absolute;
+  top: 180px;
+  left: 72px;
+  width: 650px;
+}
+
+.popup-shell {
+  position: absolute;
+  top: 112px;
+  right: 92px;
+  width: 365px;
+  padding: 20px;
+  border: 1px solid rgb(72 219 255 / 20%);
+  border-radius: 20px;
+  background:
+    radial-gradient(circle at 90% 0, rgb(32 242 178 / 12%), transparent 40%),
+    linear-gradient(145deg, #0b2034, #071522);
+  box-shadow: 0 36px 85px rgb(0 0 0 / 45%), 0 0 65px rgb(19 157 255 / 10%);
+}
+
+.popup-brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 14px;
+  font-size: 16px;
+  letter-spacing: 0.025em;
+}
+
+.popup-brand img {
+  width: 44px;
+  height: 44px;
+}
+
+.popup-row,
+.popup-control {
+  margin-bottom: 10px;
+  padding: 11px 12px;
+  border: 1px solid rgb(75 211 255 / 13%);
+  border-radius: 10px;
+  background: linear-gradient(145deg, rgb(16 42 67 / 94%), rgb(10 29 48 / 94%));
+  color: #edf8ff;
+  font-size: 14px;
+  font-weight: 630;
+}
+
+.popup-row,
+.popup-control > div:first-child {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.popup-row.prominent {
+  border-color: rgb(25 215 255 / 28%);
+}
+
+.switch {
+  position: relative;
+  width: 40px;
+  height: 22px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #118dff, #20dca7);
+}
+
+.switch::after {
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: white;
+  box-shadow: 0 2px 5px rgb(0 0 0 / 30%);
+  content: "";
+}
+
+.popup-control span b {
+  display: inline-grid;
+  width: 17px;
+  height: 17px;
+  margin-left: 4px;
+  place-items: center;
+  border: 1px solid rgb(25 215 255 / 38%);
+  border-radius: 50%;
+  color: #19d7ff;
+  font: 700 11px/1 "Segoe UI", sans-serif;
+}
+
+.popup-control output {
+  color: #20f2b2;
+  font-size: 14px;
+  font-weight: 750;
+}
+
+.range {
+  position: relative;
+  height: 14px;
+  margin-top: 10px;
+}
+
+.range::before,
+.range i {
+  position: absolute;
+  top: 5px;
+  right: 0;
+  left: 0;
+  height: 4px;
+  border-radius: 99px;
+  background: #19354b;
+  content: "";
+}
+
+.range i {
+  right: auto;
+  background: linear-gradient(90deg, #138dff, #20e6b0);
+}
+
+.range b {
+  position: absolute;
+  top: 0;
+  width: 14px;
+  height: 14px;
+  margin-left: -7px;
+  border: 2px solid #0b2034;
+  border-radius: 50%;
+  background: white;
+  box-shadow: 0 0 0 2px rgb(25 215 255 / 22%);
+}
+
+.promo-scene {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  padding: 36px;
+}
+
+.promo-scene > img {
+  z-index: 1;
+  width: 122px;
+  height: 122px;
+  filter: drop-shadow(0 20px 30px rgb(0 144 255 / 28%));
+}
+
+.promo-scene p {
+  margin: 0 0 8px;
+  color: #23dfff;
+  font-size: 11px;
+  font-weight: 760;
+  letter-spacing: 0.18em;
+}
+
+.promo-scene h1 {
+  margin: 0;
+  font-size: 29px;
+  font-stretch: condensed;
+  font-weight: 720;
+  letter-spacing: -0.025em;
+  line-height: 1.04;
+}
+
+html[data-asset="promo"] .artboard {
+  width: 440px;
+  height: 280px;
+}

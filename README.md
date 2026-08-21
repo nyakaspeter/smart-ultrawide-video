@@ -2,6 +2,9 @@
 
 A fullscreen-only Chrome extension that detects black bars baked into HTML5 video and applies the smallest uniform zoom needed to fill the display.
 
+All frame analysis happens locally. The extension has no analytics, accounts,
+advertising, or network service.
+
 ## Development
 
 ```sh
@@ -11,6 +14,19 @@ pnpm build
 ```
 
 Load `.output/chrome-mv3` as an unpacked extension from `chrome://extensions`.
+
+## Release
+
+```sh
+pnpm typecheck
+pnpm test
+pnpm zip
+```
+
+The Chrome Web Store upload package is written to `.output/`. Store listing
+copy, reviewer guidance, and generated graphics are kept in `store/`.
+
+See [PRIVACY.md](PRIVACY.md) for the published privacy policy.
 
 ## Runtime principles
 

@@ -4,7 +4,7 @@ import { browser } from 'wxt/browser';
 import { normalizeSettings } from '../core/settings';
 
 export default defineContentScript({
-  matches: ['<all_urls>'],
+  matches: ['http://*/*', 'https://*/*'],
   allFrames: true,
   matchAboutBlank: true,
   matchOriginAsFallback: true,
