@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { normalizeSettings } from '../src/core/settings';
+import { normalizeSettings, toggledEnabledState } from '../src/core/settings';
+
+describe('toggledEnabledState', () => {
+  it('toggles the stored enabled state and treats a missing value as enabled', () => {
+    expect(toggledEnabledState(true)).toBe(false);
+    expect(toggledEnabledState(false)).toBe(true);
+    expect(toggledEnabledState(undefined)).toBe(false);
+  });
+});
 
 describe('normalizeSettings', () => {
   it('uses the simple popup defaults', () => {

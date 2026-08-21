@@ -35,6 +35,10 @@ export const DEFAULT_SETTINGS: ExtensionSettings = {
   zoomAnimationEnabled: DEFAULT_ZOOM_ANIMATION_ENABLED,
 };
 
+export function toggledEnabledState(storedEnabled: unknown): boolean {
+  return storedEnabled === false;
+}
+
 function nearestAnalysisInterval(value: number): number {
   return ANALYSIS_INTERVAL_PRESETS.reduce((nearest, preset) =>
     Math.abs(preset - value) < Math.abs(nearest - value) ? preset : nearest,

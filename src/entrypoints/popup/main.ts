@@ -8,6 +8,8 @@ import {
 } from '../../core/settings';
 
 const enabled = document.getElementById('enabled') as HTMLInputElement;
+const brandIcon = document.getElementById('brand-icon') as HTMLImageElement;
+const zoomSettings = document.getElementById('zoom-settings') as HTMLFieldSetElement;
 const zoomAnimation = document.getElementById('zoom-animation') as HTMLInputElement;
 const tolerance = document.getElementById('zoom-tolerance') as HTMLInputElement;
 const toleranceValue = document.getElementById('zoom-tolerance-value') as HTMLOutputElement;
@@ -38,7 +40,17 @@ const analysisIndex = ANALYSIS_INTERVAL_PRESETS.indexOf(
 analysisFrequency.value = String(Math.max(0, analysisIndex));
 analysisFrequencyValue.value = analysisIntervalLabel(settings.analysisIntervalMs);
 
+function syncEnabledAppearance(): void {
+  zoomSettings.disabled = !enabled.checked;
+  brandIcon.src = enabled.checked
+    ? '/icon/icon-48.png'
+    : '/icon/icon-disabled-48.png';
+}
+
+syncEnabledAppearance();
+
 enabled.addEventListener('change', () => {
+  syncEnabledAppearance();
   void browser.storage.local.set({ enabled: enabled.checked });
 });
 

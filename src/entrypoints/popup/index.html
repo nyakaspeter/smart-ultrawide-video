@@ -8,30 +8,65 @@
   </head>
   <body>
     <main>
-      <h1>Smart Ultrawide Video</h1>
-      <label class="toggle-row" for="enabled">
+      <header class="brand">
+        <img id="brand-icon" src="/icon/icon-48.png" alt="" width="44" height="44" aria-hidden="true">
+        <h1>Smart Ultrawide Video</h1>
+      </header>
+      <label class="toggle-row master-toggle" for="enabled">
         <span>Enabled</span>
         <input id="enabled" type="checkbox" role="switch">
       </label>
-      <label class="toggle-row" for="zoom-animation">
-        <span>Zoom animation</span>
-        <input id="zoom-animation" type="checkbox" role="switch" checked>
-      </label>
-      <label class="control" for="zoom-tolerance">
-        <span>Zoom change tolerance</span>
-        <output id="zoom-tolerance-value" for="zoom-tolerance">10%</output>
-        <input id="zoom-tolerance" type="range" min="0" max="20" step="0.5" value="10">
-      </label>
-      <label class="control" for="zoom-out-delay">
-        <span>Zoom-out delay</span>
-        <output id="zoom-out-delay-value" for="zoom-out-delay">1 s</output>
-        <input id="zoom-out-delay" type="range" min="0" max="2000" step="100" value="1000">
-      </label>
-      <label class="control" for="analysis-frequency">
-        <span>Frame analysis frequency</span>
-        <output id="analysis-frequency-value" for="analysis-frequency">5/s</output>
-        <input id="analysis-frequency" type="range" min="0" max="10" step="1" value="5">
-      </label>
+      <fieldset id="zoom-settings" disabled>
+        <label class="toggle-row" for="zoom-animation">
+          <span>Zoom animation</span>
+          <input id="zoom-animation" type="checkbox" role="switch" checked>
+        </label>
+        <div class="control">
+          <div class="control-heading">
+            <label for="zoom-tolerance">Zoom change tolerance</label>
+            <button
+              class="info-button"
+              type="button"
+              aria-label="About zoom change tolerance"
+              aria-describedby="zoom-tolerance-help"
+              data-tooltip="Ignores detected zoom changes smaller than this percentage to reduce subtle frame-to-frame jumping."
+            >i</button>
+            <span id="zoom-tolerance-help" class="sr-only">Ignores detected zoom changes smaller than this percentage to reduce subtle frame-to-frame jumping.</span>
+          </div>
+          <output id="zoom-tolerance-value" for="zoom-tolerance">10%</output>
+          <input id="zoom-tolerance" type="range" min="0" max="20" step="0.5" value="10">
+        </div>
+        <div class="control">
+          <div class="control-heading">
+            <label for="zoom-out-delay">Zoom-out delay</label>
+            <button
+              class="info-button"
+              type="button"
+              aria-label="About zoom-out delay"
+              aria-describedby="zoom-out-delay-help"
+              data-tooltip="Waits this long before reducing zoom, helping prevent brief detection errors from causing visible jumps."
+            >i</button>
+            <span id="zoom-out-delay-help" class="sr-only">Waits this long before reducing zoom, helping prevent brief detection errors from causing visible jumps.</span>
+          </div>
+          <output id="zoom-out-delay-value" for="zoom-out-delay">1 s</output>
+          <input id="zoom-out-delay" type="range" min="0" max="2000" step="100" value="1000">
+        </div>
+        <div class="control">
+          <div class="control-heading">
+            <label for="analysis-frequency">Frame analysis frequency</label>
+            <button
+              class="info-button"
+              type="button"
+              aria-label="About frame analysis frequency"
+              aria-describedby="analysis-frequency-help"
+              data-tooltip="Controls how often fullscreen frames are checked for black bars. Higher rates react faster but use more CPU."
+            >i</button>
+            <span id="analysis-frequency-help" class="sr-only">Controls how often fullscreen frames are checked for black bars. Higher rates react faster but use more CPU.</span>
+          </div>
+          <output id="analysis-frequency-value" for="analysis-frequency">5/s</output>
+          <input id="analysis-frequency" type="range" min="0" max="10" step="1" value="5">
+        </div>
+      </fieldset>
     </main>
     <script type="module" src="./main.ts"></script>
   </body>
