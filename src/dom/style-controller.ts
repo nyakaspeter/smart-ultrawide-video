@@ -1,4 +1,4 @@
-import type { DetectedFrame } from '../core/types';
+import type { Box, DetectedFrame } from '../core/types';
 import { DEFAULT_ZOOM_TOLERANCE_PERCENT } from '../core/settings';
 import { ZOOM_OUT_CONFIRMATION_MS } from '../core/constants';
 import { calculateZoom, type SupportedObjectFit } from '../geometry/zoom-calculator';
@@ -10,6 +10,7 @@ interface SavedProperty {
 
 const VIDEO_PROPERTIES = ['transform', 'transform-origin', 'transition', 'will-change', 'visibility'] as const;
 const CONTAINER_PROPERTIES = ['overflow'] as const;
+const ZOOM_TRANSITION = 'transform 150ms ease-out';
 
 export interface AppliedZoom {
   previousZoom: number | null;
@@ -42,7 +43,9 @@ export class StyleController {
   private videoStyles = new Map<string, SavedProperty>();
   private containerStyles = new Map<string, SavedProperty>();
   private appliedTransform: string | null = null;
+  private appliedTransition = 'none';
   private appliedZoom: number | null = null;
+  private elementBox: Box | null = null;
   private pendingZoomOutSince: number | null = null;
   private zoomToleranceRatio = DEFAULT_ZOOM_TOLERANCE_PERCENT / 100;
   private videoStyleObserver: MutationObserver | null = null;
@@ -81,10 +84,23 @@ export class StyleController {
   ): AppliedZoom | null {
     if (this.video !== video) this.restore();
     if (!this.video) this.initialize(video, fullscreenElement);
-    else this.restoreSavedValues();
-    this.entryConcealed = false;
+    if (this.entryConcealed) this.revealEntry();
 
-    const rect = video.getBoundingClientRect();
+    if (this.elementBox === null || force) {
+      if (this.appliedTransform) {
+        this.appliedTransition = 'none';
+        this.restoreSavedValues();
+        video.style.setProperty('transition', 'none', 'important');
+      }
+      const rect = video.getBoundingClientRect();
+      this.elementBox = {
+        left: rect.left,
+        top: rect.top,
+        width: rect.width,
+        height: rect.height,
+      };
+    }
+
     const computed = getComputedStyle(video);
     const objectFit = (['contain', 'cover', 'fill', 'none', 'scale-down'].includes(computed.objectFit)
       ? computed.objectFit
@@ -97,7 +113,7 @@ export class StyleController {
       ?? document.documentElement.clientHeight
       ?? window.innerHeight;
     const transform = calculateZoom({
-      element: { left: rect.left, top: rect.top, width: rect.width, height: rect.height },
+      element: this.elementBox,
       viewport: {
         left: visualViewport?.offsetLeft ?? 0,
         top: visualViewport?.offsetTop ?? 0,
@@ -136,6 +152,9 @@ export class StyleController {
     if (changed) {
       this.appliedZoom = transform.scale;
       this.appliedTransform = `translate3d(${transform.translateX}px, ${transform.translateY}px, 0) scale(${transform.scale})`;
+      this.appliedTransition = zoomChanged && previousZoom !== null && !force
+        ? ZOOM_TRANSITION
+        : 'none';
     }
 
     this.enforceAppliedStyles();
@@ -156,7 +175,9 @@ export class StyleController {
     this.videoStyles.clear();
     this.containerStyles.clear();
     this.appliedTransform = null;
+    this.appliedTransition = 'none';
     this.appliedZoom = null;
+    this.elementBox = null;
     this.pendingZoomOutSince = null;
     this.entryConcealed = false;
   }
@@ -185,8 +206,8 @@ export class StyleController {
     };
 
     setImportant('transform-origin', '0 0');
+    setImportant('transition', this.appliedTransition);
     setImportant('transform', this.appliedTransform);
-    setImportant('transition', 'none');
     setImportant('will-change', 'transform');
     if (
       this.container

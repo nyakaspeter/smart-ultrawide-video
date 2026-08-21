@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { StyleController } from '../src/dom/style-controller';
 
 beforeEach(() => {
@@ -153,6 +153,47 @@ describe('StyleController', () => {
     };
     styles.apply(video, container, analysis);
     expect(styles.apply(video, container, analysis, true)?.changed).toBe(true);
+    expect(video.style.getPropertyValue('transition')).toBe('none');
+  });
+
+  it('animates established video-frame zoom changes', () => {
+    const container = document.createElement('div');
+    const video = document.createElement('video');
+    container.append(video);
+    document.body.append(container);
+    video.style.objectFit = 'contain';
+    Object.defineProperties(video, {
+      videoWidth: { value: 1920, configurable: true },
+      videoHeight: { value: 1080, configurable: true },
+    });
+    video.getBoundingClientRect = () => new DOMRect(0, 0, 2100, 900);
+
+    const styles = new StyleController();
+    styles.setZoomTolerancePercent(0);
+    styles.apply(video, container, {
+      kind: 'detected',
+      content: { left: 0, top: 0.05, right: 1, bottom: 0.95 },
+      confidence: 0.9,
+      isBlackFrame: false,
+    });
+    expect(video.style.getPropertyValue('transition')).toBe('none');
+
+    styles.apply(video, container, {
+      kind: 'detected',
+      content: { left: 0, top: 0.125, right: 1, bottom: 0.875 },
+      confidence: 0.9,
+      isBlackFrame: false,
+    });
+    expect(video.style.getPropertyValue('transition')).toBe('transform 150ms ease-out');
+
+    const setProperty = vi.spyOn(video.style, 'setProperty');
+    styles.apply(video, container, {
+      kind: 'detected',
+      content: { left: 0, top: 0.125, right: 1, bottom: 0.875 },
+      confidence: 0.9,
+      isBlackFrame: false,
+    });
+    expect(setProperty.mock.calls.some(([property]) => property === 'transform')).toBe(false);
   });
 
   it('keeps the last valid transform when transient geometry would require shrinking', () => {
@@ -178,7 +219,7 @@ describe('StyleController', () => {
     const validTransform = video.style.getPropertyValue('transform');
 
     video.getBoundingClientRect = () => new DOMRect(-1050, -450, 4200, 1800);
-    expect(styles.apply(video, container, analysis)).toBeNull();
+    expect(styles.apply(video, container, analysis, true)).toBeNull();
     expect(video.style.getPropertyValue('transform')).toBe(validTransform);
   });
 

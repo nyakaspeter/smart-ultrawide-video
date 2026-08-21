@@ -5,7 +5,7 @@ export default defineConfig({
   manifest: {
     name: 'Smart Ultrawide Video',
     description: 'Detects and removes video black bars only in fullscreen.',
-    version: '0.5.6',
+    version: '0.5.8',
     minimum_chrome_version: '110',
     permissions: ['storage'],
   },
