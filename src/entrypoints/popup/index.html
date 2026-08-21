@@ -13,10 +13,19 @@
         <span>Enabled</span>
         <input id="enabled" type="checkbox" role="switch">
       </label>
+      <label class="toggle-row" for="zoom-animation">
+        <span>Zoom animation</span>
+        <input id="zoom-animation" type="checkbox" role="switch" checked>
+      </label>
       <label class="control" for="zoom-tolerance">
         <span>Zoom change tolerance</span>
         <output id="zoom-tolerance-value" for="zoom-tolerance">10%</output>
         <input id="zoom-tolerance" type="range" min="0" max="20" step="0.5" value="10">
+      </label>
+      <label class="control" for="zoom-out-delay">
+        <span>Zoom-out delay</span>
+        <output id="zoom-out-delay-value" for="zoom-out-delay">1 s</output>
+        <input id="zoom-out-delay" type="range" min="0" max="2000" step="100" value="1000">
       </label>
       <label class="control" for="analysis-frequency">
         <span>Frame analysis frequency</span>

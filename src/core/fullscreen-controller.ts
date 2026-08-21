@@ -5,7 +5,11 @@ import { StyleController } from '../dom/style-controller';
 import type { AppliedZoom } from '../dom/style-controller';
 import { selectDominantVideo } from '../dom/video-selector';
 import { findFullscreenRoot } from '../dom/fullscreen-root';
-import { DEFAULT_ANALYSIS_INTERVAL_MS } from './settings';
+import {
+  DEFAULT_ANALYSIS_INTERVAL_MS,
+  DEFAULT_ZOOM_ANIMATION_ENABLED,
+  DEFAULT_ZOOM_OUT_DELAY_MS,
+} from './settings';
 
 const MIN_USABLE_CONFIDENCE = 0.45;
 
@@ -23,8 +27,15 @@ export class FullscreenController {
     this.sampler = new FrameSampler(analyzer);
   }
 
-  setPreferences(zoomTolerancePercent: number, analysisIntervalMs: number): void {
+  setPreferences(
+    zoomTolerancePercent: number,
+    analysisIntervalMs: number,
+    zoomOutDelayMs = DEFAULT_ZOOM_OUT_DELAY_MS,
+    zoomAnimationEnabled = DEFAULT_ZOOM_ANIMATION_ENABLED,
+  ): void {
     this.styles.setZoomTolerancePercent(zoomTolerancePercent);
+    this.styles.setZoomOutDelayMs(zoomOutDelayMs);
+    this.styles.setZoomAnimationEnabled(zoomAnimationEnabled);
     this.analysisIntervalMs = analysisIntervalMs;
     this.sampler.setAnalysisInterval(analysisIntervalMs);
   }

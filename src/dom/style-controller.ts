@@ -1,6 +1,10 @@
 import type { Box, DetectedFrame } from '../core/types';
-import { DEFAULT_ZOOM_TOLERANCE_PERCENT } from '../core/settings';
-import { ZOOM_OUT_CONFIRMATION_MS } from '../core/constants';
+import {
+  DEFAULT_ZOOM_ANIMATION_ENABLED,
+  DEFAULT_ZOOM_OUT_DELAY_MS,
+  DEFAULT_ZOOM_TOLERANCE_PERCENT,
+  MAX_ZOOM_OUT_DELAY_MS,
+} from '../core/settings';
 import { calculateZoom, type SupportedObjectFit } from '../geometry/zoom-calculator';
 
 interface SavedProperty {
@@ -48,6 +52,8 @@ export class StyleController {
   private elementBox: Box | null = null;
   private pendingZoomOutSince: number | null = null;
   private zoomToleranceRatio = DEFAULT_ZOOM_TOLERANCE_PERCENT / 100;
+  private zoomOutDelayMs = DEFAULT_ZOOM_OUT_DELAY_MS;
+  private zoomAnimationEnabled = DEFAULT_ZOOM_ANIMATION_ENABLED;
   private videoStyleObserver: MutationObserver | null = null;
   private entryConcealed = false;
 
@@ -55,6 +61,18 @@ export class StyleController {
 
   setZoomTolerancePercent(percent: number): void {
     this.zoomToleranceRatio = Math.max(0, percent) / 100;
+  }
+
+  setZoomOutDelayMs(delayMs: number): void {
+    this.zoomOutDelayMs = Math.min(MAX_ZOOM_OUT_DELAY_MS, Math.max(0, delayMs));
+  }
+
+  setZoomAnimationEnabled(enabled: boolean): void {
+    this.zoomAnimationEnabled = enabled;
+    if (!enabled && this.appliedTransition !== 'none') {
+      this.appliedTransition = 'none';
+      this.enforceAppliedStyles();
+    }
   }
 
   rejectFrame(): void {
@@ -140,10 +158,13 @@ export class StyleController {
     if (force || previousZoom === null || !exceedsTolerance || transform.scale >= previousZoom) {
       this.pendingZoomOutSince = null;
       if (!changed && exceedsTolerance && transform.scale > previousZoom!) changed = true;
+    } else if (this.zoomOutDelayMs === 0) {
+      this.pendingZoomOutSince = null;
+      changed = true;
     } else {
       const now = this.now();
       this.pendingZoomOutSince ??= now;
-      changed = now - this.pendingZoomOutSince >= ZOOM_OUT_CONFIRMATION_MS;
+      changed = now - this.pendingZoomOutSince >= this.zoomOutDelayMs;
       if (changed) this.pendingZoomOutSince = null;
     }
     const zoomChanged = previousZoom === null
@@ -152,7 +173,10 @@ export class StyleController {
     if (changed) {
       this.appliedZoom = transform.scale;
       this.appliedTransform = `translate3d(${transform.translateX}px, ${transform.translateY}px, 0) scale(${transform.scale})`;
-      this.appliedTransition = zoomChanged && previousZoom !== null && !force
+      this.appliedTransition = this.zoomAnimationEnabled
+        && zoomChanged
+        && previousZoom !== null
+        && !force
         ? ZOOM_TRANSITION
         : 'none';
     }

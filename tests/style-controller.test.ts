@@ -196,6 +196,37 @@ describe('StyleController', () => {
     expect(setProperty.mock.calls.some(([property]) => property === 'transform')).toBe(false);
   });
 
+  it('keeps established zoom changes instant when animation is disabled', () => {
+    const container = document.createElement('div');
+    const video = document.createElement('video');
+    container.append(video);
+    document.body.append(container);
+    video.style.objectFit = 'contain';
+    Object.defineProperties(video, {
+      videoWidth: { value: 1920, configurable: true },
+      videoHeight: { value: 1080, configurable: true },
+    });
+    video.getBoundingClientRect = () => new DOMRect(0, 0, 2100, 900);
+
+    const styles = new StyleController();
+    styles.setZoomTolerancePercent(0);
+    styles.setZoomAnimationEnabled(false);
+    styles.apply(video, container, {
+      kind: 'detected',
+      content: { left: 0, top: 0.05, right: 1, bottom: 0.95 },
+      confidence: 0.9,
+      isBlackFrame: false,
+    });
+    styles.apply(video, container, {
+      kind: 'detected',
+      content: { left: 0, top: 0.125, right: 1, bottom: 0.875 },
+      confidence: 0.9,
+      isBlackFrame: false,
+    });
+
+    expect(video.style.getPropertyValue('transition')).toBe('none');
+  });
+
   it('keeps the last valid transform when transient geometry would require shrinking', () => {
     const container = document.createElement('div');
     const video = document.createElement('video');
@@ -255,7 +286,7 @@ describe('StyleController', () => {
     expect(styles.apply(video, container, changedAnalysis)?.zoomChanged).toBe(true);
   });
 
-  it('requires one second of consecutive usable frames before zooming out', () => {
+  it('applies zoom-out immediately when it exceeds tolerance', () => {
     const container = document.createElement('div');
     const video = document.createElement('video');
     container.append(video);
@@ -267,9 +298,9 @@ describe('StyleController', () => {
     });
     video.getBoundingClientRect = () => new DOMRect(0, 0, 2100, 900);
 
-    let now = 0;
-    const styles = new StyleController(() => now);
+    const styles = new StyleController();
     styles.setZoomTolerancePercent(0);
+    styles.setZoomOutDelayMs(0);
     const firstAnalysis = {
       kind: 'detected' as const,
       content: { left: 0, top: 0.125, right: 1, bottom: 0.875 },
@@ -282,16 +313,10 @@ describe('StyleController', () => {
     };
 
     expect(styles.apply(video, container, firstAnalysis)?.zoomChanged).toBe(true);
-    expect(styles.apply(video, container, zoomOutAnalysis)?.zoomChanged).toBe(false);
-    now = 500;
-    expect(styles.apply(video, container, zoomOutAnalysis)?.zoomChanged).toBe(false);
-    now = 999;
-    expect(styles.apply(video, container, zoomOutAnalysis)?.zoomChanged).toBe(false);
-    now = 1_000;
     expect(styles.apply(video, container, zoomOutAnalysis)?.zoomChanged).toBe(true);
   });
 
-  it('resets pending zoom-out confirmation after a rejected frame', () => {
+  it('waits for the configured zoom-out delay', () => {
     const container = document.createElement('div');
     const video = document.createElement('video');
     container.append(video);
@@ -306,6 +331,7 @@ describe('StyleController', () => {
     let now = 0;
     const styles = new StyleController(() => now);
     styles.setZoomTolerancePercent(0);
+    styles.setZoomOutDelayMs(1_000);
     const zoomedIn = {
       kind: 'detected' as const,
       content: { left: 0, top: 0.125, right: 1, bottom: 0.875 },
@@ -317,16 +343,11 @@ describe('StyleController', () => {
       content: { left: 0, top: 0.1, right: 1, bottom: 0.9 },
     };
 
-    styles.apply(video, container, zoomedIn);
+    expect(styles.apply(video, container, zoomedIn)?.zoomChanged).toBe(true);
     expect(styles.apply(video, container, zoomedOut)?.zoomChanged).toBe(false);
-    now = 900;
+    now = 999;
     expect(styles.apply(video, container, zoomedOut)?.zoomChanged).toBe(false);
-    styles.rejectFrame();
     now = 1_000;
-    expect(styles.apply(video, container, zoomedOut)?.zoomChanged).toBe(false);
-    now = 1_999;
-    expect(styles.apply(video, container, zoomedOut)?.zoomChanged).toBe(false);
-    now = 2_000;
     expect(styles.apply(video, container, zoomedOut)?.zoomChanged).toBe(true);
   });
 

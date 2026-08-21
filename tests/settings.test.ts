@@ -7,6 +7,8 @@ describe('normalizeSettings', () => {
       enabled: true,
       zoomTolerancePercent: 10,
       analysisIntervalMs: 200,
+      zoomOutDelayMs: 1_000,
+      zoomAnimationEnabled: true,
     });
   });
 
@@ -15,10 +17,14 @@ describe('normalizeSettings', () => {
       enabled: false,
       zoomTolerancePercent: 99,
       analysisIntervalMs: 99_000,
+      zoomOutDelayMs: 2_099,
+      zoomAnimationEnabled: false,
     })).toEqual({
       enabled: false,
       zoomTolerancePercent: 20,
       analysisIntervalMs: 5_000,
+      zoomOutDelayMs: 2_000,
+      zoomAnimationEnabled: false,
     });
   });
 
@@ -29,6 +35,22 @@ describe('normalizeSettings', () => {
 
   it('accepts the viewport-events-only preset', () => {
     expect(normalizeSettings({ analysisIntervalMs: -1 }).analysisIntervalMs).toBe(-1);
+  });
+
+  it('rounds zoom-out delay to 100 ms steps', () => {
+    expect(normalizeSettings({ zoomOutDelayMs: 149 }).zoomOutDelayMs).toBe(100);
+    expect(normalizeSettings({ zoomOutDelayMs: 151 }).zoomOutDelayMs).toBe(200);
+  });
+
+  it('formats zoom-out delay labels', async () => {
+    const { zoomOutDelayLabel } = await import('../src/core/settings');
+    expect([0, 900, 1_000, 1_500, 2_000].map(zoomOutDelayLabel)).toEqual([
+      '0 s',
+      '0.9 s',
+      '1 s',
+      '1.5 s',
+      '2 s',
+    ]);
   });
 
   it('uses concise user-facing labels for every frequency preset', async () => {

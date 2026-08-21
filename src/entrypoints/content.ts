@@ -16,6 +16,8 @@ export default defineContentScript({
     const stored = await browser.storage.local.get([
       'enabled',
       'zoomTolerancePercent',
+      'zoomOutDelayMs',
+      'zoomAnimationEnabled',
       'analysisIntervalMs',
       'analysisRate',
     ]);
@@ -23,7 +25,12 @@ export default defineContentScript({
     let enabled = settings.enabled;
     let controllersStarted = false;
 
-    fullscreen.setPreferences(settings.zoomTolerancePercent, settings.analysisIntervalMs);
+    fullscreen.setPreferences(
+      settings.zoomTolerancePercent,
+      settings.analysisIntervalMs,
+      settings.zoomOutDelayMs,
+      settings.zoomAnimationEnabled,
+    );
 
     const setControllersEnabled = (nextEnabled: boolean) => {
       enabled = nextEnabled;
@@ -43,7 +50,11 @@ export default defineContentScript({
       areaName: string,
     ) => {
       if (areaName !== 'local') return;
-      const relevantChange = changes.enabled || changes.zoomTolerancePercent || changes.analysisIntervalMs;
+      const relevantChange = changes.enabled
+        || changes.zoomTolerancePercent
+        || changes.zoomOutDelayMs
+        || changes.zoomAnimationEnabled
+        || changes.analysisIntervalMs;
       if (!relevantChange) return;
 
       settings = normalizeSettings({
@@ -52,11 +63,22 @@ export default defineContentScript({
         ...(changes.zoomTolerancePercent
           ? { zoomTolerancePercent: changes.zoomTolerancePercent.newValue }
           : {}),
+        ...(changes.zoomOutDelayMs
+          ? { zoomOutDelayMs: changes.zoomOutDelayMs.newValue }
+          : {}),
+        ...(changes.zoomAnimationEnabled
+          ? { zoomAnimationEnabled: changes.zoomAnimationEnabled.newValue }
+          : {}),
         ...(changes.analysisIntervalMs
           ? { analysisIntervalMs: changes.analysisIntervalMs.newValue }
           : {}),
       });
-      fullscreen.setPreferences(settings.zoomTolerancePercent, settings.analysisIntervalMs);
+      fullscreen.setPreferences(
+        settings.zoomTolerancePercent,
+        settings.analysisIntervalMs,
+        settings.zoomOutDelayMs,
+        settings.zoomAnimationEnabled,
+      );
       setControllersEnabled(settings.enabled);
     };
     browser.storage.onChanged.addListener(onStorageChanged);

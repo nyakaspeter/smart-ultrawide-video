@@ -1,5 +1,9 @@
 export const DEFAULT_ZOOM_TOLERANCE_PERCENT = 10;
 export const MAX_ZOOM_TOLERANCE_PERCENT = 20;
+export const DEFAULT_ZOOM_OUT_DELAY_MS = 1_000;
+export const MAX_ZOOM_OUT_DELAY_MS = 2_000;
+export const ZOOM_OUT_DELAY_STEP_MS = 100;
+export const DEFAULT_ZOOM_ANIMATION_ENABLED = true;
 export const ANALYSIS_INTERVAL_PRESETS = [
   -1,
   5_000,
@@ -19,12 +23,16 @@ export interface ExtensionSettings {
   enabled: boolean;
   zoomTolerancePercent: number;
   analysisIntervalMs: number;
+  zoomOutDelayMs: number;
+  zoomAnimationEnabled: boolean;
 }
 
 export const DEFAULT_SETTINGS: ExtensionSettings = {
   enabled: true,
   zoomTolerancePercent: DEFAULT_ZOOM_TOLERANCE_PERCENT,
   analysisIntervalMs: DEFAULT_ANALYSIS_INTERVAL_MS,
+  zoomOutDelayMs: DEFAULT_ZOOM_OUT_DELAY_MS,
+  zoomAnimationEnabled: DEFAULT_ZOOM_ANIMATION_ENABLED,
 };
 
 function nearestAnalysisInterval(value: number): number {
@@ -42,6 +50,10 @@ export function analysisIntervalLabel(intervalMs: number): string {
   return `${Math.round(1_000 / intervalMs)}/s`;
 }
 
+export function zoomOutDelayLabel(delayMs: number): string {
+  return `${Number((delayMs / 1_000).toFixed(1))} s`;
+}
+
 export function normalizeSettings(values: Record<string, unknown>): ExtensionSettings {
   const tolerance = typeof values.zoomTolerancePercent === 'number'
     && Number.isFinite(values.zoomTolerancePercent)
@@ -57,10 +69,20 @@ export function normalizeSettings(values: Record<string, unknown>): ExtensionSet
     : null;
   const analysisInterval = storedInterval
     ?? (legacyRate === null ? DEFAULT_ANALYSIS_INTERVAL_MS : legacyRate === 0 ? 0 : 1_000 / legacyRate);
+  const storedZoomOutDelay = typeof values.zoomOutDelayMs === 'number'
+    && Number.isFinite(values.zoomOutDelayMs)
+    ? values.zoomOutDelayMs
+    : DEFAULT_ZOOM_OUT_DELAY_MS;
+  const zoomOutDelayMs = Math.min(
+    MAX_ZOOM_OUT_DELAY_MS,
+    Math.max(0, Math.round(storedZoomOutDelay / ZOOM_OUT_DELAY_STEP_MS) * ZOOM_OUT_DELAY_STEP_MS),
+  );
 
   return {
     enabled: values.enabled !== false,
     zoomTolerancePercent: Math.min(MAX_ZOOM_TOLERANCE_PERCENT, Math.max(0, tolerance)),
     analysisIntervalMs: nearestAnalysisInterval(Math.max(-1, analysisInterval)),
+    zoomOutDelayMs,
+    zoomAnimationEnabled: values.zoomAnimationEnabled !== false,
   };
 }
