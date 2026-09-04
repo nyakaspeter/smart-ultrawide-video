@@ -15,8 +15,13 @@ describe('normalizeSettings', () => {
       enabled: true,
       zoomTolerancePercent: 10,
       analysisIntervalMs: 200,
-      zoomOutDelayMs: 1_000,
+      zoomInDelayMs: 0,
+      zoomOutDelayMs: 0,
       zoomAnimationEnabled: true,
+      blackBarLumaThreshold: 4,
+      logoTolerancePercent: 2.5,
+      maxZoomScale: 21 / 16,
+      debugViewEnabled: false,
     });
   });
 
@@ -25,14 +30,23 @@ describe('normalizeSettings', () => {
       enabled: false,
       zoomTolerancePercent: 99,
       analysisIntervalMs: 99_000,
+      zoomInDelayMs: 2_099,
       zoomOutDelayMs: 2_099,
       zoomAnimationEnabled: false,
+      blackBarLumaThreshold: 99,
+      logoTolerancePercent: 99,
+      maxZoomPercent: (21 / 16) * 100,
     })).toEqual({
       enabled: false,
       zoomTolerancePercent: 20,
       analysisIntervalMs: 5_000,
+      zoomInDelayMs: 2_000,
       zoomOutDelayMs: 2_000,
       zoomAnimationEnabled: false,
+      blackBarLumaThreshold: 8,
+      logoTolerancePercent: 5,
+      maxZoomScale: 21 / 16,
+      debugViewEnabled: false,
     });
   });
 

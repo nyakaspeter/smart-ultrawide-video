@@ -36,7 +36,6 @@ describe('StyleController', () => {
     styles.apply(video, container, {
       kind: 'detected',
       content: { left: 0, top: 0.125, right: 1, bottom: 0.875 },
-      confidence: 0.9,
       isBlackFrame: false,
     });
     expect(video.style.getPropertyValue('visibility')).toBe('visible');
@@ -80,7 +79,6 @@ describe('StyleController', () => {
     expect(styles.apply(video, container, {
       kind: 'detected',
       content: { left: 0, top: 0.125, right: 1, bottom: 0.875 },
-      confidence: 0.95,
       isBlackFrame: false,
     })).not.toBeNull();
 
@@ -116,14 +114,12 @@ describe('StyleController', () => {
     const first = styles.apply(video, container, {
       kind: 'detected',
       content: { left: 0, top: 0.125, right: 1, bottom: 0.875 },
-      confidence: 0.9,
       isBlackFrame: false,
     });
     const firstTransform = video.style.getPropertyValue('transform');
     const second = styles.apply(video, container, {
       kind: 'detected',
       content: { left: 0, top: 0.124, right: 1, bottom: 0.876 },
-      confidence: 0.9,
       isBlackFrame: false,
     });
 
@@ -148,7 +144,6 @@ describe('StyleController', () => {
     const analysis = {
       kind: 'detected' as const,
       content: { left: 0, top: 0.125, right: 1, bottom: 0.875 },
-      confidence: 0.9,
       isBlackFrame: false,
     };
     styles.apply(video, container, analysis);
@@ -173,7 +168,6 @@ describe('StyleController', () => {
     styles.apply(video, container, {
       kind: 'detected',
       content: { left: 0, top: 0.05, right: 1, bottom: 0.95 },
-      confidence: 0.9,
       isBlackFrame: false,
     });
     expect(video.style.getPropertyValue('transition')).toBe('none');
@@ -181,7 +175,6 @@ describe('StyleController', () => {
     styles.apply(video, container, {
       kind: 'detected',
       content: { left: 0, top: 0.125, right: 1, bottom: 0.875 },
-      confidence: 0.9,
       isBlackFrame: false,
     });
     expect(video.style.getPropertyValue('transition')).toBe('transform 150ms ease-out');
@@ -190,7 +183,6 @@ describe('StyleController', () => {
     styles.apply(video, container, {
       kind: 'detected',
       content: { left: 0, top: 0.125, right: 1, bottom: 0.875 },
-      confidence: 0.9,
       isBlackFrame: false,
     });
     expect(setProperty.mock.calls.some(([property]) => property === 'transform')).toBe(false);
@@ -214,13 +206,11 @@ describe('StyleController', () => {
     styles.apply(video, container, {
       kind: 'detected',
       content: { left: 0, top: 0.05, right: 1, bottom: 0.95 },
-      confidence: 0.9,
       isBlackFrame: false,
     });
     styles.apply(video, container, {
       kind: 'detected',
       content: { left: 0, top: 0.125, right: 1, bottom: 0.875 },
-      confidence: 0.9,
       isBlackFrame: false,
     });
 
@@ -243,7 +233,6 @@ describe('StyleController', () => {
     const analysis = {
       kind: 'detected' as const,
       content: { left: 0, top: 0.125, right: 1, bottom: 0.875 },
-      confidence: 0.9,
       isBlackFrame: false,
     };
     expect(styles.apply(video, container, analysis)).not.toBeNull();
@@ -270,7 +259,6 @@ describe('StyleController', () => {
     const firstAnalysis = {
       kind: 'detected' as const,
       content: { left: 0, top: 0.05, right: 1, bottom: 0.95 },
-      confidence: 0.9,
       isBlackFrame: false,
     };
     const changedAnalysis = {
@@ -304,7 +292,6 @@ describe('StyleController', () => {
     const firstAnalysis = {
       kind: 'detected' as const,
       content: { left: 0, top: 0.125, right: 1, bottom: 0.875 },
-      confidence: 0.9,
       isBlackFrame: false,
     };
     const zoomOutAnalysis = {
@@ -335,7 +322,6 @@ describe('StyleController', () => {
     const zoomedIn = {
       kind: 'detected' as const,
       content: { left: 0, top: 0.125, right: 1, bottom: 0.875 },
-      confidence: 0.9,
       isBlackFrame: false,
     };
     const zoomedOut = {
@@ -349,6 +335,35 @@ describe('StyleController', () => {
     expect(styles.apply(video, container, zoomedOut)?.zoomChanged).toBe(false);
     now = 1_000;
     expect(styles.apply(video, container, zoomedOut)?.zoomChanged).toBe(true);
+  });
+
+  it('waits for the configured zoom-in delay', () => {
+    const container = document.createElement('div');
+    const video = document.createElement('video');
+    container.append(video);
+    document.body.append(container);
+    video.style.objectFit = 'contain';
+    Object.defineProperties(video, {
+      videoWidth: { value: 1920, configurable: true },
+      videoHeight: { value: 1080, configurable: true },
+    });
+    video.getBoundingClientRect = () => new DOMRect(0, 0, 2100, 900);
+
+    let now = 0;
+    const styles = new StyleController(() => now);
+    styles.setZoomTolerancePercent(0);
+    styles.setZoomInDelayMs(1_000);
+    const zoomedIn = {
+      kind: 'detected' as const,
+      content: { left: 0, top: 0.125, right: 1, bottom: 0.875 },
+      isBlackFrame: false,
+    };
+
+    expect(styles.apply(video, container, zoomedIn)?.zoomChanged).toBe(false);
+    now = 999;
+    expect(styles.apply(video, container, zoomedIn)?.zoomChanged).toBe(false);
+    now = 1_000;
+    expect(styles.apply(video, container, zoomedIn)?.zoomChanged).toBe(true);
   });
 
   it('restores the active transform when the page overwrites it', async () => {
@@ -367,7 +382,6 @@ describe('StyleController', () => {
     styles.apply(video, container, {
       kind: 'detected',
       content: { left: 0, top: 0.125, right: 1, bottom: 0.875 },
-      confidence: 0.9,
       isBlackFrame: false,
     });
     const expectedTransform = video.style.getPropertyValue('transform');
@@ -377,6 +391,38 @@ describe('StyleController', () => {
 
     expect(video.style.getPropertyValue('transform')).toBe(expectedTransform);
     expect(video.style.getPropertyPriority('transform')).toBe('important');
+    styles.restore();
+  });
+
+  it('shows the detected content rectangle without zooming in debug view', () => {
+    const container = document.createElement('div');
+    const video = document.createElement('video');
+    container.append(video);
+    document.body.append(container);
+    video.style.objectFit = 'contain';
+    Object.defineProperties(video, {
+      videoWidth: { value: 1920, configurable: true },
+      videoHeight: { value: 1080, configurable: true },
+    });
+    video.getBoundingClientRect = () => new DOMRect(0, 0, 2100, 900);
+
+    const styles = new StyleController();
+    styles.setDebugView(true);
+    styles.apply(video, container, {
+      kind: 'detected',
+      content: { left: 0, top: 0.125, right: 1, bottom: 0.875 },
+      isBlackFrame: false,
+    });
+
+    const overlay = document.querySelector<HTMLElement>('[data-smart-ultrawide-debug="content"]');
+    expect(video.style.getPropertyValue('transform')).toBe('');
+    expect(overlay?.style.left).toBe('250px');
+    expect(overlay?.style.top).toBe('112.5px');
+    expect(overlay?.style.width).toBe('1600px');
+    expect(overlay?.style.height).toBe('675px');
+
+    styles.setDebugView(false);
+    expect(overlay?.isConnected).toBe(false);
     styles.restore();
   });
 });

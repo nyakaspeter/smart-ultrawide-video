@@ -15,7 +15,6 @@ describe('FrameSampler', () => {
     const analyze = vi.fn(() => ({
       kind: 'detected' as const,
       content: { left: 0, top: 0, right: 1, bottom: 1 },
-      confidence: 0.9,
       isBlackFrame: false,
     }));
     const analyzer = { analyze } as unknown as FrameAnalyzer;
@@ -35,7 +34,6 @@ describe('FrameSampler', () => {
     const analyze = vi.fn(() => ({
       kind: 'detected' as const,
       content: { left: 0, top: 0, right: 1, bottom: 1 },
-      confidence: 0.9,
       isBlackFrame: false,
     }));
     const analyzer = { analyze } as unknown as FrameAnalyzer;
@@ -74,7 +72,6 @@ describe('FrameSampler', () => {
     const analyze = vi.fn(() => ({
       kind: 'detected' as const,
       content: { left: 0, top: 0, right: 1, bottom: 1 },
-      confidence: 0.9,
       isBlackFrame: false,
     }));
     const analyzer = { analyze } as unknown as FrameAnalyzer;
@@ -111,7 +108,6 @@ describe('FrameSampler', () => {
     const analyze = vi.fn(() => ({
       kind: 'detected' as const,
       content: { left: 0, top: 0, right: 1, bottom: 1 },
-      confidence: 0.9,
       isBlackFrame: false,
     }));
     const analyzer = { analyze } as unknown as FrameAnalyzer;

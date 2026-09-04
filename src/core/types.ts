@@ -14,8 +14,8 @@ export interface PixelFrame {
 export interface DetectedFrame {
   kind: 'detected';
   content: NormalizedRect;
-  confidence: number;
   isBlackFrame: boolean;
+  signalPixelPercent?: number;
 }
 
 export interface UnreadableFrame {
@@ -24,14 +24,6 @@ export interface UnreadableFrame {
 }
 
 export type FrameAnalysis = DetectedFrame | UnreadableFrame;
-
-export interface CachedAnalysis {
-  source: string;
-  videoWidth: number;
-  videoHeight: number;
-  mediaTime: number;
-  analysis: FrameAnalysis;
-}
 
 export interface Box {
   left: number;

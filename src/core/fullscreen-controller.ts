@@ -5,13 +5,8 @@ import { StyleController } from '../dom/style-controller';
 import type { AppliedZoom } from '../dom/style-controller';
 import { selectDominantVideo } from '../dom/video-selector';
 import { findFullscreenRoot } from '../dom/fullscreen-root';
-import {
-  DEFAULT_ANALYSIS_INTERVAL_MS,
-  DEFAULT_ZOOM_ANIMATION_ENABLED,
-  DEFAULT_ZOOM_OUT_DELAY_MS,
-} from './settings';
-
-const MIN_USABLE_CONFIDENCE = 0.45;
+import { DEFAULT_ANALYSIS_INTERVAL_MS } from './settings';
+import type { ExtensionSettings } from './settings';
 
 export class FullscreenController {
   private readonly sampler: FrameSampler;
@@ -22,22 +17,28 @@ export class FullscreenController {
   private resizeFrame: number | null = null;
   private resizeObserver: ResizeObserver | null = null;
   private videoTreeObserver: MutationObserver | null = null;
+  private debugViewEnabled = false;
 
   constructor(private readonly analyzer: FrameAnalyzer) {
     this.sampler = new FrameSampler(analyzer);
   }
 
-  setPreferences(
-    zoomTolerancePercent: number,
-    analysisIntervalMs: number,
-    zoomOutDelayMs = DEFAULT_ZOOM_OUT_DELAY_MS,
-    zoomAnimationEnabled = DEFAULT_ZOOM_ANIMATION_ENABLED,
-  ): void {
-    this.styles.setZoomTolerancePercent(zoomTolerancePercent);
-    this.styles.setZoomOutDelayMs(zoomOutDelayMs);
-    this.styles.setZoomAnimationEnabled(zoomAnimationEnabled);
-    this.analysisIntervalMs = analysisIntervalMs;
-    this.sampler.setAnalysisInterval(analysisIntervalMs);
+  setPreferences(settings: ExtensionSettings): void {
+    const debugViewChanged = settings.debugViewEnabled !== this.debugViewEnabled;
+    this.debugViewEnabled = settings.debugViewEnabled;
+    this.styles.setZoomTolerancePercent(settings.zoomTolerancePercent);
+    this.styles.setZoomInDelayMs(settings.zoomInDelayMs);
+    this.styles.setZoomOutDelayMs(settings.zoomOutDelayMs);
+    this.styles.setZoomAnimationEnabled(settings.zoomAnimationEnabled);
+    this.analyzer.setBlackBarLumaThreshold(settings.blackBarLumaThreshold);
+    this.analyzer.setLogoTolerancePercent(settings.logoTolerancePercent);
+    this.styles.setMaxZoomScale(settings.maxZoomScale);
+    this.styles.setDebugView(settings.debugViewEnabled);
+    this.analysisIntervalMs = settings.analysisIntervalMs;
+    this.sampler.setAnalysisInterval(settings.analysisIntervalMs);
+    if (debugViewChanged && this.activeVideo && this.activeAnalysis) {
+      this.apply(this.activeAnalysis, 'viewport-resize');
+    }
   }
 
   start(): void {
@@ -119,12 +120,14 @@ export class FullscreenController {
     if (!this.activeVideo || !findFullscreenRoot()) return;
 
     if (analysis.kind === 'unreadable') {
+      this.styles.showDebugStatus('unreadable', undefined, analysis.reason);
       this.styles.rejectFrame();
       this.styles.revealEntry();
       return;
     }
 
-    if (analysis.isBlackFrame || analysis.confidence < MIN_USABLE_CONFIDENCE) {
+    if (analysis.isBlackFrame) {
+      this.styles.showDebugStatus('black', analysis.signalPixelPercent);
       this.styles.rejectFrame();
       this.styles.revealEntry();
       return;
@@ -173,7 +176,6 @@ export class FullscreenController {
         if (
           current.kind === 'detected'
           && !current.isBlackFrame
-          && current.confidence >= MIN_USABLE_CONFIDENCE
         ) {
           this.apply(current, 'viewport-resize');
           return;

@@ -1,6 +1,8 @@
 import { ANALYSIS_LONG_EDGE, ANALYSIS_MIN_EDGE } from '../core/constants';
 import type { FrameAnalysis, PixelFrame } from '../core/types';
 import { detectContentRect } from './bar-detector';
+import { DEFAULT_BLACK_BAR_LUMA_THRESHOLD } from '../core/settings';
+import { DEFAULT_LOGO_TOLERANCE_PERCENT } from '../core/settings';
 
 type CanvasLike = OffscreenCanvas | HTMLCanvasElement;
 type ContextLike = OffscreenCanvasRenderingContext2D | CanvasRenderingContext2D;
@@ -8,6 +10,16 @@ type ContextLike = OffscreenCanvasRenderingContext2D | CanvasRenderingContext2D;
 export class FrameAnalyzer {
   private canvas: CanvasLike | null = null;
   private context: ContextLike | null = null;
+  private blackBarLumaThreshold = DEFAULT_BLACK_BAR_LUMA_THRESHOLD;
+  private logoTolerancePercent = DEFAULT_LOGO_TOLERANCE_PERCENT;
+
+  setBlackBarLumaThreshold(threshold: number): void {
+    this.blackBarLumaThreshold = threshold;
+  }
+
+  setLogoTolerancePercent(percent: number): void {
+    this.logoTolerancePercent = percent;
+  }
 
   analyze(video: HTMLVideoElement): FrameAnalysis {
     if (video.readyState < HTMLMediaElement.HAVE_CURRENT_DATA || video.videoWidth === 0 || video.videoHeight === 0) {
@@ -23,7 +35,7 @@ export class FrameAnalyzer {
       context.drawImage(video, 0, 0, width, height);
       const image = context.getImageData(0, 0, width, height);
       const frame: PixelFrame = { data: image.data, width, height };
-      return detectContentRect(frame);
+      return detectContentRect(frame, this.blackBarLumaThreshold, this.logoTolerancePercent);
     } catch (error) {
       if (error instanceof DOMException && error.name === 'SecurityError') {
         return { kind: 'unreadable', reason: 'security' };

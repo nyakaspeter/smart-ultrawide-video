@@ -15,7 +15,6 @@ describe('detectContentRect', () => {
     const result = detectContentRect(frame);
     expect(result.content.top).toBeCloseTo(12 / 90, 2);
     expect(result.content.bottom).toBeCloseTo(78 / 90, 2);
-    expect(result.confidence).toBeGreaterThan(0.8);
   });
 
   it('detects baked-in pillarboxing', () => {
@@ -36,30 +35,48 @@ describe('detectContentRect', () => {
     expect(result.content.bottom).toBeCloseTo(80 / 90, 2);
   });
 
-  it('ignores a small subtitle-like bright patch inside a bar', () => {
+  it('stops before a small bright patch inside a bar', () => {
     const frame = solidFrame(160, 90, 2);
     fillRect(frame, 0, 12, 160, 78, 150);
     fillRect(frame, 70, 80, 90, 84, 245);
     const result = detectContentRect(frame);
-    expect(result.content.top).toBeCloseTo(12 / 90, 2);
-    expect(result.content.bottom).toBeCloseTo(78 / 90, 2);
+    expect(result.content.top).toBeCloseTo(6 / 90, 2);
+    expect(result.content.bottom).toBeCloseTo(84 / 90, 2);
   });
 
-  it('ignores a wide promotional overlay inside a horizontal bar', () => {
+  it('stops before a wide promotional overlay inside a bar', () => {
     const frame = solidFrame(160, 90, 2);
     fillRect(frame, 0, 12, 160, 78, 150);
     fillRect(frame, 8, 2, 50, 10, 245);
 
     const result = detectContentRect(frame);
-    expect(result.content.top).toBeCloseTo(12 / 90, 2);
-    expect(result.content.bottom).toBeCloseTo(78 / 90, 2);
-    expect(result.confidence).toBeGreaterThan(0.45);
+    expect(result.content.top).toBeCloseTo(2 / 90, 2);
+    expect(result.content.bottom).toBeCloseTo(88 / 90, 2);
+  });
+
+  it('uses the configured maximum luma for every pixel in a bar', () => {
+    const frame = solidFrame(160, 90, 18);
+    fillRect(frame, 0, 12, 160, 78, 180);
+    expect(detectContentRect(frame, 16).content.top).toBe(0);
+    expect(detectContentRect(frame, 20).content.top).toBeCloseTo(12 / 90, 2);
   });
 
   it('marks fully black frames as unsuitable', () => {
     const result = detectContentRect(solidFrame(160, 90, 2));
     expect(result.isBlackFrame).toBe(true);
-    expect(result.confidence).toBe(0);
+  });
+
+  it('uses the luminance threshold to identify fully black frames', () => {
+    const frame = solidFrame(160, 90, 5);
+    expect(detectContentRect(frame, 4).isBlackFrame).toBe(false);
+    expect(detectContentRect(frame, 5).isBlackFrame).toBe(true);
+  });
+
+  it('ignores a small bright overlay when identifying a black frame', () => {
+    const frame = solidFrame(160, 90, 2);
+    fillRect(frame, 145, 78, 158, 88, 180);
+    expect(detectContentRect(frame, 4).isBlackFrame).toBe(true);
+    expect(detectContentRect(frame, 4, 0).isBlackFrame).toBe(false);
   });
 
   it('detects bars around genuinely dark footage', () => {
@@ -69,7 +86,6 @@ describe('detectContentRect', () => {
     expect(result.isBlackFrame).toBe(false);
     expect(result.content.top).toBeCloseTo(12 / 90, 2);
     expect(result.content.bottom).toBeCloseTo(78 / 90, 2);
-    expect(result.confidence).toBeGreaterThan(0.45);
   });
 
   it('does not call a dark frame with sparse highlights black', () => {
@@ -86,18 +102,16 @@ describe('detectContentRect', () => {
     fillRect(frame, 0, 12, 160, 78, 4);
     fillRect(frame, 55, 30, 105, 55, 80);
 
-    const result = detectContentRect(frame);
+    const result = detectContentRect(frame, 0);
     expect(result.isBlackFrame).toBe(false);
     expect(result.content.top).toBeCloseTo(12 / 90, 2);
     expect(result.content.bottom).toBeCloseTo(78 / 90, 2);
-    expect(result.confidence).toBeGreaterThan(0.45);
   });
 
-  it('treats uniformly near-black edge content as ambiguous, not proof of no bars', () => {
-    const result = detectContentRect(solidFrame(160, 90, 14));
-    expect(result.isBlackFrame).toBe(false);
+  it('treats a uniformly below-threshold frame as black', () => {
+    const result = detectContentRect(solidFrame(160, 90, 14), 16);
+    expect(result.isBlackFrame).toBe(true);
     expect(result.content).toEqual({ left: 0, top: 0, right: 1, bottom: 1 });
-    expect(result.confidence).toBeLessThan(0.45);
   });
 
   it('rejects dark picture sides as false pillarboxing', () => {
@@ -108,12 +122,11 @@ describe('detectContentRect', () => {
     fillRect(frame, 36, 24, 124, 34, 200);
     fillRect(frame, 0, 72, 160, 78, 160);
 
-    const result = detectContentRect(frame);
+    const result = detectContentRect(frame, 0);
     expect(result.content.left).toBe(0);
     expect(result.content.right).toBe(1);
     expect(result.content.top).toBeCloseTo(12 / 90, 2);
     expect(result.content.bottom).toBeCloseTo(78 / 90, 2);
-    expect(result.confidence).toBeGreaterThan(0.45);
   });
 
   it('stops at a dark gradient instead of absorbing it into letterbox bars', () => {
@@ -124,9 +137,28 @@ describe('detectContentRect', () => {
       fillRect(frame, 0, y, 160, y + 1, level);
     }
 
-    const result = detectContentRect(frame);
+    const result = detectContentRect(frame, 0);
     expect(result.content.top).toBeCloseTo(12 / 90, 2);
     expect(result.content.bottom).toBeCloseTo(78 / 90, 2);
-    expect(result.confidence).toBeGreaterThan(0.45);
+  });
+
+  it('uses the smaller edge run when dark content extends one bar', () => {
+    const frame = solidFrame(160, 90, 2);
+    fillRect(frame, 0, 12, 160, 78, 180);
+    fillRect(frame, 0, 12, 160, 28, 7);
+
+    const result = detectContentRect(frame, 8, 0);
+    expect(result.content.top).toBeCloseTo(12 / 90, 2);
+    expect(result.content.bottom).toBeCloseTo(78 / 90, 2);
+  });
+
+  it('rejects one-sided bar evidence', () => {
+    const frame = solidFrame(160, 90, 180);
+    fillRect(frame, 0, 0, 160, 12, 2);
+
+    const result = detectContentRect(frame);
+    expect(result.isBlackFrame).toBe(false);
+    expect(result.content.top).toBe(0);
+    expect(result.content.bottom).toBe(1);
   });
 });

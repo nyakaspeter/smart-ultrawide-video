@@ -9,12 +9,14 @@ export interface ZoomInput {
   intrinsicHeight: number;
   content: NormalizedRect;
   objectFit: SupportedObjectFit;
+  maxScale: number;
 }
 
 export interface ZoomTransform {
   scale: number;
   translateX: number;
   translateY: number;
+  contentBox: Box;
   mode: 'contain';
 }
 
@@ -80,7 +82,8 @@ export function calculateZoom(input: ZoomInput): ZoomTransform | null {
   // The host player may briefly report an oversized video element while
   // switching sources (YouTube autoplay does this). Smart Ultrawide only
   // removes bars by zooming in, so reject transient shrink measurements.
-  const scale = Math.min(input.viewport.width / contentWidth, input.viewport.height / contentHeight);
+  const requiredScale = Math.min(input.viewport.width / contentWidth, input.viewport.height / contentHeight);
+  const scale = Math.min(requiredScale, input.maxScale);
   if (scale < 1) return null;
 
   const contentLeft = media.left + media.width * input.content.left;
@@ -94,6 +97,12 @@ export function calculateZoom(input: ZoomInput): ZoomTransform | null {
     scale,
     translateX: targetLeft - input.element.left - contentLeft * scale,
     translateY: targetTop - input.element.top - contentTop * scale,
+    contentBox: {
+      left: input.element.left + contentLeft,
+      top: input.element.top + contentTop,
+      width: contentWidth,
+      height: contentHeight,
+    },
     mode: 'contain',
   };
 }

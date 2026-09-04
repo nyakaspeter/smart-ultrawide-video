@@ -1,7 +1,7 @@
 import { FrameAnalyzer } from '../analysis/frame-analyzer';
 import { FullscreenController } from '../core/fullscreen-controller';
 import { browser } from 'wxt/browser';
-import { normalizeSettings } from '../core/settings';
+import { normalizeSettings, SETTING_STORAGE_KEYS } from '../core/settings';
 
 export default defineContentScript({
   matches: ['http://*/*', 'https://*/*'],
@@ -13,24 +13,12 @@ export default defineContentScript({
     const analyzer = new FrameAnalyzer();
     const fullscreen = new FullscreenController(analyzer);
 
-    const stored = await browser.storage.local.get([
-      'enabled',
-      'zoomTolerancePercent',
-      'zoomOutDelayMs',
-      'zoomAnimationEnabled',
-      'analysisIntervalMs',
-      'analysisRate',
-    ]);
+    const stored = await browser.storage.local.get([...SETTING_STORAGE_KEYS]);
     let settings = normalizeSettings(stored);
     let enabled = settings.enabled;
     let controllersStarted = false;
 
-    fullscreen.setPreferences(
-      settings.zoomTolerancePercent,
-      settings.analysisIntervalMs,
-      settings.zoomOutDelayMs,
-      settings.zoomAnimationEnabled,
-    );
+    fullscreen.setPreferences(settings);
 
     const setControllersEnabled = (nextEnabled: boolean) => {
       enabled = nextEnabled;
@@ -50,35 +38,14 @@ export default defineContentScript({
       areaName: string,
     ) => {
       if (areaName !== 'local') return;
-      const relevantChange = changes.enabled
-        || changes.zoomTolerancePercent
-        || changes.zoomOutDelayMs
-        || changes.zoomAnimationEnabled
-        || changes.analysisIntervalMs;
-      if (!relevantChange) return;
+      const changedValues: Record<string, unknown> = {};
+      for (const key of SETTING_STORAGE_KEYS) {
+        if (changes[key]) changedValues[key] = changes[key].newValue;
+      }
+      if (Object.keys(changedValues).length === 0) return;
 
-      settings = normalizeSettings({
-        ...settings,
-        ...(changes.enabled ? { enabled: changes.enabled.newValue } : {}),
-        ...(changes.zoomTolerancePercent
-          ? { zoomTolerancePercent: changes.zoomTolerancePercent.newValue }
-          : {}),
-        ...(changes.zoomOutDelayMs
-          ? { zoomOutDelayMs: changes.zoomOutDelayMs.newValue }
-          : {}),
-        ...(changes.zoomAnimationEnabled
-          ? { zoomAnimationEnabled: changes.zoomAnimationEnabled.newValue }
-          : {}),
-        ...(changes.analysisIntervalMs
-          ? { analysisIntervalMs: changes.analysisIntervalMs.newValue }
-          : {}),
-      });
-      fullscreen.setPreferences(
-        settings.zoomTolerancePercent,
-        settings.analysisIntervalMs,
-        settings.zoomOutDelayMs,
-        settings.zoomAnimationEnabled,
-      );
+      settings = normalizeSettings({ ...settings, ...changedValues });
+      fullscreen.setPreferences(settings);
       setControllersEnabled(settings.enabled);
     };
     browser.storage.onChanged.addListener(onStorageChanged);

@@ -36,7 +36,9 @@ See [PRIVACY.md](PRIVACY.md) for the published privacy policy.
 - Sampling stops while the tab is hidden and stops completely on fullscreen exit.
 - Real picture is never cropped to force a mismatched aspect ratio; only detected encoded bars are removed.
 - Frame-to-frame zoom changes within the configurable tolerance are ignored to prevent visual jitter (10% by default).
-- Zoom-in changes apply immediately; zoom-out uses a configurable 0–2 second confirmation delay (1 second by default).
+- A detected bar is eligible for removal only when every sampled pixel in it is at or below the configurable luminance threshold.
+- Automatic zoom is capped at a configurable maximum (131.25% by default, enough to vertically fill 21:9 content letterboxed in a 16:9 frame).
+- Zoom-in and zoom-out confirmation delays are independently configurable (both default to 0 seconds).
 - Established zoom changes use a configurable 150 ms animation, enabled by default.
 - An event-driven style guard restores the active transform if a player rewrites the video's inline CSS.
 - During fullscreen entry, the video is concealed only for the synchronous first-frame measurement and revealed with the initial transform already applied.
@@ -51,6 +53,10 @@ Pin the extension from Brave or Chrome's extensions menu, then click its toolbar
 - turn zoom animation on or off;
 - adjust the frame-to-frame zoom-change tolerance from 0% to 20%;
 - adjust zoom-out delay from 0 to 2 seconds in 100 ms steps;
+- adjust the luminance threshold from 0 to 8;
+- adjust whole-frame logo tolerance from 0% to 5% (2.5% by default);
+- adjust maximum zoom from 100% to 300%;
+- enable a debug view that disables zoom and highlights the detected content rectangle;
 - choose viewport-change-only analysis or a frequency from every five seconds through every decoded frame.
 
 The video tab's DevTools console receives one concise `[Smart Ultrawide]` line

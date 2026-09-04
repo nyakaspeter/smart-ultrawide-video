@@ -1,9 +1,11 @@
 import type { Box, DetectedFrame } from '../core/types';
 import {
   DEFAULT_ZOOM_ANIMATION_ENABLED,
+  DEFAULT_ZOOM_IN_DELAY_MS,
   DEFAULT_ZOOM_OUT_DELAY_MS,
   DEFAULT_ZOOM_TOLERANCE_PERCENT,
-  MAX_ZOOM_OUT_DELAY_MS,
+  DEFAULT_MAX_ZOOM_SCALE,
+  MAX_ZOOM_DELAY_MS,
 } from '../core/settings';
 import { calculateZoom, type SupportedObjectFit } from '../geometry/zoom-calculator';
 
@@ -50,10 +52,16 @@ export class StyleController {
   private appliedTransition = 'none';
   private appliedZoom: number | null = null;
   private elementBox: Box | null = null;
+  private pendingZoomInSince: number | null = null;
   private pendingZoomOutSince: number | null = null;
   private zoomToleranceRatio = DEFAULT_ZOOM_TOLERANCE_PERCENT / 100;
+  private zoomInDelayMs = DEFAULT_ZOOM_IN_DELAY_MS;
   private zoomOutDelayMs = DEFAULT_ZOOM_OUT_DELAY_MS;
   private zoomAnimationEnabled = DEFAULT_ZOOM_ANIMATION_ENABLED;
+  private maxZoomScale = DEFAULT_MAX_ZOOM_SCALE;
+  private debugView = false;
+  private debugOverlay: HTMLDivElement | null = null;
+  private debugStatus: HTMLDivElement | null = null;
   private videoStyleObserver: MutationObserver | null = null;
   private entryConcealed = false;
 
@@ -63,8 +71,12 @@ export class StyleController {
     this.zoomToleranceRatio = Math.max(0, percent) / 100;
   }
 
+  setZoomInDelayMs(delayMs: number): void {
+    this.zoomInDelayMs = Math.min(MAX_ZOOM_DELAY_MS, Math.max(0, delayMs));
+  }
+
   setZoomOutDelayMs(delayMs: number): void {
-    this.zoomOutDelayMs = Math.min(MAX_ZOOM_OUT_DELAY_MS, Math.max(0, delayMs));
+    this.zoomOutDelayMs = Math.min(MAX_ZOOM_DELAY_MS, Math.max(0, delayMs));
   }
 
   setZoomAnimationEnabled(enabled: boolean): void {
@@ -75,7 +87,27 @@ export class StyleController {
     }
   }
 
+  setMaxZoomScale(scale: number): void {
+    this.maxZoomScale = Math.max(1, scale);
+  }
+
+  setDebugView(enabled: boolean): void {
+    if (this.debugView === enabled) return;
+    this.debugView = enabled;
+    this.removeDebugOverlay();
+    if (enabled && this.appliedTransform) {
+      this.appliedTransform = null;
+      this.appliedTransition = 'none';
+      this.appliedZoom = null;
+      this.elementBox = null;
+      this.pendingZoomInSince = null;
+      this.pendingZoomOutSince = null;
+      this.restoreSavedValues();
+    }
+  }
+
   rejectFrame(): void {
+    this.pendingZoomInSince = null;
     this.pendingZoomOutSince = null;
   }
 
@@ -142,33 +174,54 @@ export class StyleController {
       intrinsicHeight: video.videoHeight,
       content: analysis.content,
       objectFit,
+      maxScale: this.maxZoomScale,
     });
     if (!transform || !Number.isFinite(transform.scale) || transform.scale < 1) {
       this.enforceAppliedStyles();
       return null;
     }
 
-    const previousZoom = this.appliedZoom;
-    const zoomDeltaRatio = previousZoom === null
-      ? Number.POSITIVE_INFINITY
-      : Math.abs(transform.scale / previousZoom - 1);
-    const exceedsTolerance = zoomDeltaRatio > this.zoomToleranceRatio;
-    let changed = force || previousZoom === null;
+    if (this.debugView) {
+      this.showDebugOverlay(transform.contentBox);
+      this.showDebugStatus('detected', analysis.signalPixelPercent);
+      return {
+        previousZoom: this.appliedZoom,
+        appliedZoom: 1,
+        changed: true,
+        zoomChanged: false,
+      };
+    }
+    this.removeDebugOverlay();
 
-    if (force || previousZoom === null || !exceedsTolerance || transform.scale >= previousZoom) {
+    const previousZoom = this.appliedZoom;
+    const comparisonZoom = previousZoom ?? 1;
+    const zoomDeltaRatio = Math.abs(transform.scale / comparisonZoom - 1);
+    const exceedsTolerance = previousZoom === null || zoomDeltaRatio > this.zoomToleranceRatio;
+    let changed = force || (previousZoom === null && transform.scale === 1);
+
+    if (force || !exceedsTolerance) {
+      this.pendingZoomInSince = null;
       this.pendingZoomOutSince = null;
-      if (!changed && exceedsTolerance && transform.scale > previousZoom!) changed = true;
-    } else if (this.zoomOutDelayMs === 0) {
+    } else if (transform.scale > comparisonZoom) {
       this.pendingZoomOutSince = null;
-      changed = true;
-    } else {
+      if (this.zoomInDelayMs === 0) changed = true;
+      else {
+        const now = this.now();
+        this.pendingZoomInSince ??= now;
+        changed = now - this.pendingZoomInSince >= this.zoomInDelayMs;
+        if (changed) this.pendingZoomInSince = null;
+      }
+    } else if (transform.scale < comparisonZoom) {
+      this.pendingZoomInSince = null;
+      if (this.zoomOutDelayMs === 0) changed = true;
+      else {
       const now = this.now();
       this.pendingZoomOutSince ??= now;
       changed = now - this.pendingZoomOutSince >= this.zoomOutDelayMs;
       if (changed) this.pendingZoomOutSince = null;
+      }
     }
-    const zoomChanged = previousZoom === null
-      || (changed && transform.scale !== previousZoom);
+    const zoomChanged = changed && (previousZoom === null || transform.scale !== previousZoom);
 
     if (changed) {
       this.appliedZoom = transform.scale;
@@ -184,7 +237,7 @@ export class StyleController {
     this.enforceAppliedStyles();
     return {
       previousZoom,
-      appliedZoom: this.appliedZoom!,
+      appliedZoom: this.appliedZoom ?? 1,
       changed,
       zoomChanged,
     };
@@ -202,8 +255,82 @@ export class StyleController {
     this.appliedTransition = 'none';
     this.appliedZoom = null;
     this.elementBox = null;
+    this.pendingZoomInSince = null;
     this.pendingZoomOutSince = null;
     this.entryConcealed = false;
+    this.removeDebugOverlay();
+  }
+
+  showDebugStatus(
+    state: 'detected' | 'black' | 'unreadable',
+    signalPixelPercent?: number,
+    unreadableReason?: string,
+  ): void {
+    if (!this.debugView) return;
+    const colors = {
+      detected: 'rgba(32,242,178,.95)',
+      black: 'rgba(255,196,61,.95)',
+      unreadable: 'rgba(255,91,112,.95)',
+    };
+    if (this.debugOverlay) this.debugOverlay.style.borderColor = colors[state];
+
+    const status = this.debugStatus ?? document.createElement('div');
+    if (!this.debugStatus) {
+      status.dataset.smartUltrawideDebug = 'status';
+      status.style.cssText = [
+        'position:fixed',
+        'left:12px',
+        'top:12px',
+        'z-index:2147483647',
+        'pointer-events:none',
+        'padding:6px 9px',
+        'border-radius:6px',
+        'background:rgba(0,0,0,.78)',
+        'color:white',
+        'font:12px/1.35 system-ui,sans-serif',
+        'box-shadow:0 2px 12px rgba(0,0,0,.45)',
+      ].join(';');
+      document.documentElement.append(status);
+      this.debugStatus = status;
+    }
+    status.style.border = `1px solid ${colors[state]}`;
+    const percentage = signalPixelPercent === undefined
+      ? ''
+      : ` • ${Number(signalPixelPercent.toFixed(2))}% above threshold`;
+    status.textContent = state === 'detected'
+      ? `Detected geometry${percentage}`
+      : state === 'black'
+        ? `Black frame${percentage} • rectangle held`
+        : `Unreadable frame${unreadableReason ? ` (${unreadableReason})` : ''} • rectangle held`;
+  }
+
+  private showDebugOverlay(box: Box): void {
+    const overlay = this.debugOverlay ?? document.createElement('div');
+    if (!this.debugOverlay) {
+      overlay.dataset.smartUltrawideDebug = 'content';
+      overlay.style.cssText = [
+        'position:fixed',
+        'pointer-events:none',
+        'z-index:2147483647',
+        'box-sizing:border-box',
+        'border:3px solid rgba(32,242,178,.9)',
+        'background:rgba(25,215,255,.18)',
+        'box-shadow:0 0 0 1px rgba(0,0,0,.7),inset 0 0 24px rgba(25,215,255,.12)',
+      ].join(';');
+      document.documentElement.append(overlay);
+      this.debugOverlay = overlay;
+    }
+    overlay.style.left = `${box.left}px`;
+    overlay.style.top = `${box.top}px`;
+    overlay.style.width = `${box.width}px`;
+    overlay.style.height = `${box.height}px`;
+  }
+
+  private removeDebugOverlay(): void {
+    this.debugOverlay?.remove();
+    this.debugOverlay = null;
+    this.debugStatus?.remove();
+    this.debugStatus = null;
   }
 
   private initialize(video: HTMLVideoElement, fullscreenElement: Element): void {

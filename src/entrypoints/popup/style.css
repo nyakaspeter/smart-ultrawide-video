@@ -14,6 +14,7 @@
 body {
   margin: 0;
   min-width: 320px;
+  overflow: hidden;
   background:
     radial-gradient(circle at 88% -12%, rgb(32 242 178 / 13%), transparent 42%),
     radial-gradient(circle at 5% 8%, rgb(25 146 255 / 16%), transparent 38%),
@@ -33,14 +34,14 @@ body {
 }
 
 main {
-  padding: 17px;
+  padding: 10px;
 }
 
 .brand {
   display: flex;
   align-items: center;
   gap: 11px;
-  margin: 0 0 15px;
+  margin: 0 0 6px;
 }
 
 .brand img {
@@ -71,8 +72,8 @@ fieldset {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin: 0 0 10px;
-  padding: 10px 11px;
+  margin: 0 0 4px;
+  padding: 6px 9px;
   border: 1px solid var(--border);
   border-radius: 10px;
   background: linear-gradient(145deg, rgb(16 42 67 / 94%), rgb(10 29 48 / 94%));
@@ -140,8 +141,57 @@ input:focus-visible {
 .control {
   display: grid;
   grid-template-columns: 1fr auto;
-  gap: 8px 12px;
+  gap: 3px 9px;
   font-weight: 600;
+}
+
+.reset-button {
+  min-width: 0;
+  margin-left: auto;
+  padding: 1px 5px;
+  border: 1px solid rgb(141 166 186 / 30%);
+  border-radius: 5px;
+  background: rgb(141 166 186 / 8%);
+  color: var(--muted);
+  font: 600 10px/1.4 "Segoe UI", system-ui, sans-serif;
+  cursor: pointer;
+}
+
+.reset-button:hover,
+.reset-button:focus-visible {
+  border-color: rgb(25 215 255 / 55%);
+  color: var(--cyan);
+}
+
+.reset-button[hidden] {
+  display: none;
+}
+
+.toggle-row > .reset-button + input {
+  margin-left: 8px;
+}
+
+.debug-view-button {
+  display: block;
+  margin: 3px auto 0;
+  padding: 2px 5px;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  font: 500 11px/1.3 "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif;
+  cursor: pointer;
+  opacity: 0.7;
+}
+
+.debug-view-button:hover,
+.debug-view-button:focus-visible {
+  color: var(--cyan);
+  opacity: 1;
+}
+
+.debug-view-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.35;
 }
 
 .control-heading {
@@ -226,7 +276,7 @@ output {
 .control input[type='range'] {
   grid-column: 1 / -1;
   width: 100%;
-  height: 16px;
+  height: 12px;
   box-sizing: border-box;
   appearance: none;
   background: transparent;

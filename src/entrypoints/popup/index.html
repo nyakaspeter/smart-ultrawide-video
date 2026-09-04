@@ -23,18 +23,18 @@
         </label>
         <div class="control">
           <div class="control-heading">
-            <label for="zoom-tolerance">Zoom change tolerance</label>
+            <label for="zoom-in-delay">Zoom-in delay</label>
             <button
               class="info-button"
               type="button"
-              aria-label="About zoom change tolerance"
-              aria-describedby="zoom-tolerance-help"
-              data-tooltip="Ignores detected zoom changes smaller than this percentage to reduce subtle frame-to-frame jumping."
+              aria-label="About zoom-in delay"
+              aria-describedby="zoom-in-delay-help"
+              data-tooltip="Waits this long before increasing zoom, helping prevent brief detection errors from causing visible jumps."
             >i</button>
-            <span id="zoom-tolerance-help" class="sr-only">Ignores detected zoom changes smaller than this percentage to reduce subtle frame-to-frame jumping.</span>
+            <span id="zoom-in-delay-help" class="sr-only">Waits this long before increasing zoom.</span>
           </div>
-          <output id="zoom-tolerance-value" for="zoom-tolerance">10%</output>
-          <input id="zoom-tolerance" type="range" min="0" max="20" step="0.5" value="10">
+          <output id="zoom-in-delay-value" for="zoom-in-delay">0 s</output>
+          <input id="zoom-in-delay" type="range" min="0" max="2000" step="100" value="0">
         </div>
         <div class="control">
           <div class="control-heading">
@@ -48,8 +48,23 @@
             >i</button>
             <span id="zoom-out-delay-help" class="sr-only">Waits this long before reducing zoom, helping prevent brief detection errors from causing visible jumps.</span>
           </div>
-          <output id="zoom-out-delay-value" for="zoom-out-delay">1 s</output>
-          <input id="zoom-out-delay" type="range" min="0" max="2000" step="100" value="1000">
+          <output id="zoom-out-delay-value" for="zoom-out-delay">0 s</output>
+          <input id="zoom-out-delay" type="range" min="0" max="2000" step="100" value="0">
+        </div>
+        <div class="control">
+          <div class="control-heading">
+            <label for="zoom-tolerance">Zoom change tolerance</label>
+            <button
+              class="info-button"
+              type="button"
+              aria-label="About zoom change tolerance"
+              aria-describedby="zoom-tolerance-help"
+              data-tooltip="Ignores detected zoom changes smaller than this percentage to reduce subtle frame-to-frame jumping."
+            >i</button>
+            <span id="zoom-tolerance-help" class="sr-only">Ignores detected zoom changes smaller than this percentage to reduce subtle frame-to-frame jumping.</span>
+          </div>
+          <output id="zoom-tolerance-value" for="zoom-tolerance">10%</output>
+          <input id="zoom-tolerance" type="range" min="0" max="20" step="0.5" value="10">
         </div>
         <div class="control">
           <div class="control-heading">
@@ -66,6 +81,34 @@
           <output id="analysis-frequency-value" for="analysis-frequency">5/s</output>
           <input id="analysis-frequency" type="range" min="0" max="10" step="1" value="5">
         </div>
+        <div class="control">
+          <div class="control-heading">
+            <label for="black-bar-luma">Luminance threshold</label>
+            <button class="info-button" type="button" aria-label="About luminance threshold" aria-describedby="black-bar-luma-help" data-tooltip="Zooms only when every sampled pixel in a detected bar is at or below this brightness (0 is pure black).">i</button>
+            <span id="black-bar-luma-help" class="sr-only">Zooms only when every sampled pixel in a detected bar is at or below this brightness.</span>
+          </div>
+          <output id="black-bar-luma-value" for="black-bar-luma">4</output>
+          <input id="black-bar-luma" type="range" min="0" max="8" step="1" value="4">
+        </div>
+        <div class="control">
+          <div class="control-heading">
+            <label for="logo-tolerance">Logo tolerance</label>
+            <button class="info-button" type="button" aria-label="About logo tolerance" aria-describedby="logo-tolerance-help" data-tooltip="Allows this percentage of pixels to exceed the luminance threshold when deciding whether an entire frame is black.">i</button>
+            <span id="logo-tolerance-help" class="sr-only">Allows a small bright logo when deciding whether an entire frame is black.</span>
+          </div>
+          <output id="logo-tolerance-value" for="logo-tolerance">2.5%</output>
+          <input id="logo-tolerance" type="range" min="0" max="5" step="0.1" value="2.5">
+        </div>
+        <div class="control">
+          <div class="control-heading">
+            <label for="max-zoom">Maximum zoom</label>
+            <button class="info-button" type="button" aria-label="About maximum zoom" aria-describedby="max-zoom-help" data-tooltip="Caps automatic zoom. The default 131.25% vertically fills a 21:9 picture letterboxed in a 16:9 video.">i</button>
+            <span id="max-zoom-help" class="sr-only">Caps automatic zoom. The default vertically fills a 21:9 picture letterboxed in a 16:9 video.</span>
+          </div>
+          <output id="max-zoom-value" for="max-zoom">131.25%</output>
+          <input id="max-zoom" type="range" min="100" max="300" step="0.05" value="131.25">
+        </div>
+        <button id="debug-view" class="debug-view-button" type="button">Enable debug view</button>
       </fieldset>
     </main>
     <script type="module" src="./main.ts"></script>
