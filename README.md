@@ -15,11 +15,21 @@ pnpm build
 
 Load `.output/chrome-mv3` as an unpacked extension from `chrome://extensions`.
 
+Browser regression tests exercise CSS serialization and real video layout:
+
+```sh
+pnpm exec playwright install chromium
+pnpm test:browser
+```
+
+To use an existing Chromium browser, set `BROWSER_EXECUTABLE_PATH` to its executable.
+
 ## Release
 
 ```sh
 pnpm typecheck
 pnpm test
+pnpm test:browser
 pnpm zip
 ```
 

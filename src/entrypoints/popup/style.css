@@ -41,7 +41,7 @@ main {
   display: flex;
   align-items: center;
   gap: 11px;
-  margin: 0 0 6px;
+  margin: 0 0 14px;
 }
 
 .brand img {
@@ -87,6 +87,7 @@ fieldset {
 
 .toggle-row > span,
 .control-heading {
+  position: relative;
   font-size: 14px;
 }
 
@@ -206,7 +207,7 @@ input:focus-visible {
 }
 
 .info-button {
-  position: relative;
+  position: static;
   display: inline-grid;
   width: 17px;
   height: 17px;
@@ -223,10 +224,11 @@ input:focus-visible {
 }
 
 .info-button::after {
+  display: none;
   position: absolute;
   z-index: 10;
   top: calc(100% + 8px);
-  left: -84px;
+  left: 0;
   width: 232px;
   box-sizing: border-box;
   padding: 8px 9px;
@@ -249,8 +251,14 @@ input:focus-visible {
 
 .info-button:hover::after,
 .info-button:focus-visible::after {
+  display: block;
   opacity: 1;
   transform: translateY(0);
+}
+
+.control:nth-last-of-type(-n + 2) .info-button::after {
+  top: auto;
+  bottom: calc(100% + 8px);
 }
 
 .info-button:focus-visible {

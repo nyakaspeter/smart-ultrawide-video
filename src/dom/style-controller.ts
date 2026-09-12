@@ -55,6 +55,7 @@ export class StyleController {
   private nativeTransform = 'none';
   private nativeOrigin = '0 0';
   private originOffset = { x: 0, y: 0 };
+  private writtenStyles = new Map<string, { requested: string; serialized: string }>();
   private pendingZoomInSince: number | null = null;
   private pendingZoomOutSince: number | null = null;
   private zoomToleranceRatio = DEFAULT_ZOOM_TOLERANCE_PERCENT / 100;
@@ -275,6 +276,7 @@ export class StyleController {
     this.nativeTransform = 'none';
     this.nativeOrigin = '0 0';
     this.originOffset = { x: 0, y: 0 };
+    this.writtenStyles.clear();
     this.pendingZoomInSince = null;
     this.pendingZoomOutSince = null;
     this.entryConcealed = false;
@@ -373,10 +375,20 @@ export class StyleController {
   private enforceAppliedStyles(): void {
     if (!this.video || !this.appliedTransform) return;
     const setImportant = (property: string, value: string): void => {
+      const written = this.writtenStyles.get(property);
       if (
-        this.video!.style.getPropertyValue(property) !== value
+        written?.requested !== value
+        || this.video!.style.getPropertyValue(property) !== written.serialized
         || this.video!.style.getPropertyPriority(property) !== 'important'
-      ) this.video!.style.setProperty(property, value, 'important');
+      ) {
+        this.video!.style.setProperty(property, value, 'important');
+        // CSSOM normalizes values (for example translate3d's 0 becomes 0px).
+        // Track what the browser actually stored, not our input spelling.
+        this.writtenStyles.set(property, {
+          requested: value,
+          serialized: this.video!.style.getPropertyValue(property),
+        });
+      }
     };
 
     setImportant('transform-origin', this.nativeOrigin);
@@ -399,11 +411,9 @@ export class StyleController {
 
   private capturePlayerStyles(video: HTMLVideoElement): void {
     if (!this.appliedTransform) return;
-    for (const [property, applied] of [
-      ['transform', this.appliedTransform],
-      ['transform-origin', this.nativeOrigin],
-    ] as const) {
-      if (video.style.getPropertyValue(property) !== applied) {
+    for (const property of ['transform', 'transform-origin']) {
+      const written = this.writtenStyles.get(property);
+      if (written && video.style.getPropertyValue(property) !== written.serialized) {
         this.videoStyles.set(property, {
           value: video.style.getPropertyValue(property),
           priority: video.style.getPropertyPriority(property),
