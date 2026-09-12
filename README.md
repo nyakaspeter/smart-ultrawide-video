@@ -42,7 +42,7 @@ See [PRIVACY.md](PRIVACY.md) for the published privacy policy.
 
 - Non-fullscreen playback is never visually modified.
 - No video discovery, frame sampling, or aspect-ratio calculation runs outside fullscreen.
-- Fullscreen analysis uses a 160-pixel sampling surface and an ordered frequency preset (5/s by default).
+- Fullscreen analysis uses a fixed 144-pixel short edge (256×144 for 16:9), preserving aspect ratio without upscaling, and an ordered frequency preset (5/s by default).
 - Sampling stops while the tab is hidden and stops completely on fullscreen exit.
 - Real picture is never cropped to force a mismatched aspect ratio; only detected encoded bars are removed.
 - Frame-to-frame zoom changes within the configurable tolerance are ignored to prevent visual jitter (10% by default).

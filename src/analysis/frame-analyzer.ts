@@ -1,4 +1,4 @@
-import { ANALYSIS_LONG_EDGE, ANALYSIS_MIN_EDGE } from '../core/constants';
+import { ANALYSIS_SHORT_EDGE } from '../core/constants';
 import type { FrameAnalysis, PixelFrame } from '../core/types';
 import { detectContentRect } from './bar-detector';
 import { DEFAULT_BLACK_BAR_LUMA_THRESHOLD } from '../core/settings';
@@ -50,10 +50,10 @@ export class FrameAnalyzer {
   }
 
   private sampleDimensions(videoWidth: number, videoHeight: number): { width: number; height: number } {
-    const scale = ANALYSIS_LONG_EDGE / Math.max(videoWidth, videoHeight);
+    const scale = Math.min(1, ANALYSIS_SHORT_EDGE / Math.min(videoWidth, videoHeight));
     return {
-      width: Math.max(ANALYSIS_MIN_EDGE, Math.round(videoWidth * scale)),
-      height: Math.max(ANALYSIS_MIN_EDGE, Math.round(videoHeight * scale)),
+      width: Math.max(1, Math.round(videoWidth * scale)),
+      height: Math.max(1, Math.round(videoHeight * scale)),
     };
   }
 
