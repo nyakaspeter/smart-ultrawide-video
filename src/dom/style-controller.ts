@@ -52,6 +52,9 @@ export class StyleController {
   private appliedTransition = 'none';
   private appliedZoom: number | null = null;
   private elementBox: Box | null = null;
+  private nativeTransform = 'none';
+  private nativeOrigin = '0 0';
+  private originOffset = { x: 0, y: 0 };
   private pendingZoomInSince: number | null = null;
   private pendingZoomOutSince: number | null = null;
   private zoomToleranceRatio = DEFAULT_ZOOM_TOLERANCE_PERCENT / 100;
@@ -136,20 +139,28 @@ export class StyleController {
     if (!this.video) this.initialize(video, fullscreenElement);
     if (this.entryConcealed) this.revealEntry();
 
-    if (this.elementBox === null || force) {
-      if (this.appliedTransform) {
-        this.appliedTransition = 'none';
-        this.restoreSavedValues();
-        video.style.setProperty('transition', 'none', 'important');
-      }
-      const rect = video.getBoundingClientRect();
-      this.elementBox = {
-        left: rect.left,
-        top: rect.top,
-        width: rect.width,
-        height: rect.height,
-      };
-    }
+    // Measure the player's current positioning without our adjustment. Position
+    // changes alone do not trigger ResizeObserver (common during embed entry).
+    const previousBox = this.elementBox;
+    const previousNativeTransform = this.nativeTransform;
+    const previousNativeOrigin = this.nativeOrigin;
+    // Let an active zoom transition finish before temporarily removing it for
+    // measurement. Forced viewport updates still take effect immediately.
+    const animating = !force && this.elementBox !== null && video.getAnimations?.().some(
+      (animation) => 'transitionProperty' in animation
+        && animation.transitionProperty === 'transform'
+        && animation.playState === 'running',
+    );
+    if (!animating) this.measureNativeGeometry(video);
+    const geometryChanged = previousBox !== null && (
+      previousBox.left !== this.elementBox!.left
+      || previousBox.top !== this.elementBox!.top
+      || previousBox.width !== this.elementBox!.width
+      || previousBox.height !== this.elementBox!.height
+      || previousNativeTransform !== this.nativeTransform
+      || previousNativeOrigin !== this.nativeOrigin
+    );
+    force ||= geometryChanged;
 
     const computed = getComputedStyle(video);
     const objectFit = (['contain', 'cover', 'fill', 'none', 'scale-down'].includes(computed.objectFit)
@@ -163,7 +174,7 @@ export class StyleController {
       ?? document.documentElement.clientHeight
       ?? window.innerHeight;
     const transform = calculateZoom({
-      element: this.elementBox,
+      element: this.elementBox!,
       viewport: {
         left: visualViewport?.offsetLeft ?? 0,
         top: visualViewport?.offsetTop ?? 0,
@@ -225,7 +236,12 @@ export class StyleController {
 
     if (changed) {
       this.appliedZoom = transform.scale;
-      this.appliedTransform = `translate3d(${transform.translateX}px, ${transform.translateY}px, 0) scale(${transform.scale})`;
+      // CSS applies the rightmost transform first. Keep the player's transform
+      // and origin, then scale its rendered picture and translate in screen axes.
+      const x = transform.translateX + (1 - transform.scale) * this.originOffset.x;
+      const y = transform.translateY + (1 - transform.scale) * this.originOffset.y;
+      const native = this.nativeTransform === 'none' ? '' : ` ${this.nativeTransform}`;
+      this.appliedTransform = `translate3d(${x}px, ${y}px, 0) scale(${transform.scale})${native}`;
       this.appliedTransition = this.zoomAnimationEnabled
         && zoomChanged
         && previousZoom !== null
@@ -244,6 +260,7 @@ export class StyleController {
   }
 
   restore(): void {
+    if (this.video) this.capturePlayerStyles(this.video);
     this.videoStyleObserver?.disconnect();
     this.videoStyleObserver = null;
     this.restoreSavedValues();
@@ -255,6 +272,9 @@ export class StyleController {
     this.appliedTransition = 'none';
     this.appliedZoom = null;
     this.elementBox = null;
+    this.nativeTransform = 'none';
+    this.nativeOrigin = '0 0';
+    this.originOffset = { x: 0, y: 0 };
     this.pendingZoomInSince = null;
     this.pendingZoomOutSince = null;
     this.entryConcealed = false;
@@ -343,7 +363,10 @@ export class StyleController {
 
   private observeVideoStyle(video: HTMLVideoElement): void {
     if (typeof MutationObserver !== 'function') return;
-    this.videoStyleObserver = new MutationObserver(() => this.enforceAppliedStyles());
+    this.videoStyleObserver = new MutationObserver(() => {
+      this.capturePlayerStyles(video);
+      this.enforceAppliedStyles();
+    });
     this.videoStyleObserver.observe(video, { attributes: true, attributeFilter: ['style'] });
   }
 
@@ -356,7 +379,7 @@ export class StyleController {
       ) this.video!.style.setProperty(property, value, 'important');
     };
 
-    setImportant('transform-origin', '0 0');
+    setImportant('transform-origin', this.nativeOrigin);
     setImportant('transition', this.appliedTransition);
     setImportant('transform', this.appliedTransform);
     setImportant('will-change', 'transform');
@@ -372,5 +395,52 @@ export class StyleController {
   private restoreSavedValues(): void {
     if (this.video) restoreProperties(this.video.style, this.videoStyles);
     if (this.container) restoreProperties(this.container.style, this.containerStyles);
+  }
+
+  private capturePlayerStyles(video: HTMLVideoElement): void {
+    if (!this.appliedTransform) return;
+    for (const [property, applied] of [
+      ['transform', this.appliedTransform],
+      ['transform-origin', this.nativeOrigin],
+    ] as const) {
+      if (video.style.getPropertyValue(property) !== applied) {
+        this.videoStyles.set(property, {
+          value: video.style.getPropertyValue(property),
+          priority: video.style.getPropertyPriority(property),
+        });
+      }
+    }
+  }
+
+  private measureNativeGeometry(video: HTMLVideoElement): void {
+    this.capturePlayerStyles(video);
+    const current = saveProperties(video.style, ['transform', 'transform-origin', 'transition']);
+    // Disconnect while making temporary synchronous measurements so our own
+    // writes cannot be mistaken for a player update by the style observer.
+    this.videoStyleObserver?.disconnect();
+    try {
+      video.style.setProperty('transition', 'none', 'important');
+      for (const property of ['transform', 'transform-origin']) {
+        const saved = this.videoStyles.get(property)!;
+        restoreProperties(video.style, new Map([[property, saved]]));
+      }
+      const computed = getComputedStyle(video);
+      this.nativeTransform = computed.transform || 'none';
+      this.nativeOrigin = computed.transformOrigin || '0 0';
+      const rect = video.getBoundingClientRect();
+      this.elementBox = { left: rect.left, top: rect.top, width: rect.width, height: rect.height };
+      video.style.setProperty('transform', 'none', 'important');
+      const layout = video.getBoundingClientRect();
+      const origin = this.nativeOrigin.split(/\s+/);
+      const coordinate = (value: string, size: number): number =>
+        value.endsWith('%') ? parseFloat(value) * size / 100 : parseFloat(value) || 0;
+      this.originOffset = {
+        x: rect.left - layout.left - coordinate(origin[0] ?? '0', layout.width),
+        y: rect.top - layout.top - coordinate(origin[1] ?? origin[0] ?? '0', layout.height),
+      };
+    } finally {
+      restoreProperties(video.style, current);
+      this.videoStyleObserver?.observe(video, { attributes: true, attributeFilter: ['style'] });
+    }
   }
 }

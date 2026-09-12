@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { StyleController } from '../src/dom/style-controller';
 
 beforeEach(() => {
@@ -15,6 +15,126 @@ afterEach(() => {
 });
 
 describe('StyleController', () => {
+  it.each([false, true])('composes with player centering (encoded bars: %s)', (bars) => {
+    const container = document.createElement('div');
+    const video = document.createElement('video');
+    container.append(video);
+    document.body.append(container);
+    video.style.transform = 'translate(-50%, -50%)';
+    video.style.transformOrigin = '800px 450px';
+    video.style.objectFit = 'contain';
+    Object.defineProperties(video, {
+      videoWidth: { value: 1920, configurable: true },
+      videoHeight: { value: 1080, configurable: true },
+    });
+    // Layout anchor is the viewport center; the player's transform centers a
+    // 1600 x 900 video. The mock distinguishes native and untransformed geometry.
+    video.getBoundingClientRect = () => video.style.transform === 'none'
+      ? new DOMRect(1050, 450, 1600, 900)
+      : new DOMRect(250, 0, 1600, 900);
+    const styles = new StyleController();
+    styles.apply(video, container, {
+      kind: 'detected',
+      content: { left: 0, top: bars ? 0.125 : 0, right: 1, bottom: bars ? 0.875 : 1 },
+      isBlackFrame: false,
+    });
+    const value = video.style.transform;
+    expect(value).toContain('translate(-50%, -50%)');
+    expect(video.style.transformOrigin).toBe('800px 450px');
+    const [, x, y, scale] = value.match(/translate3d\(([-\d.]+)px, ([-\d.]+)px, 0\) scale\(([-\d.]+)\)/)!;
+    // Apply the composed transform about the original origin to the picture's
+    // center. Both axes must land at the viewport center with and without bars.
+    expect(1050 + 800 + Number(x) + Number(scale) * -800).toBeCloseTo(1050);
+    expect(450 + 450 + Number(y) + Number(scale) * -450).toBeCloseTo(450);
+    expect(Number(scale)).toBeCloseTo(bars ? 1.3125 : 1);
+    if (!bars) expect([Number(x), Number(y)]).toEqual([0, 0]);
+    styles.restore();
+    expect(video.style.transform).toBe('translate(-50%, -50%)');
+  });
+
+  it('updates centering when the player moves without resizing', () => {
+    const container = document.createElement('div');
+    const video = document.createElement('video');
+    container.append(video);
+    document.body.append(container);
+    video.style.objectFit = 'contain';
+    Object.defineProperties(video, {
+      videoWidth: { value: 1920, configurable: true },
+      videoHeight: { value: 1080, configurable: true },
+    });
+    let left = 250;
+    video.getBoundingClientRect = () => new DOMRect(left, 0, 1600, 900);
+    const styles = new StyleController();
+    const analysis = {
+      kind: 'detected' as const,
+      content: { left: 0, top: 0, right: 1, bottom: 1 },
+      isBlackFrame: false,
+    };
+    styles.apply(video, container, analysis);
+    left = 350;
+    expect(styles.apply(video, container, analysis)?.changed).toBe(true);
+    expect(video.style.transform).toBe('translate3d(-100px, 0px, 0) scale(1)');
+    styles.restore();
+  });
+
+  it('picks up stylesheet positioning changes and restores the cascade', () => {
+    const sheet = document.createElement('style');
+    sheet.textContent = '.embedded-video { transform: translateX(-100px); transform-origin: 50% 50%; }';
+    const container = document.createElement('div');
+    const video = document.createElement('video');
+    video.className = 'embedded-video';
+    container.append(video);
+    document.body.append(sheet, container);
+    video.style.objectFit = 'contain';
+    Object.defineProperties(video, {
+      videoWidth: { value: 1920, configurable: true },
+      videoHeight: { value: 1080, configurable: true },
+    });
+    video.getBoundingClientRect = () => new DOMRect(0, 0, 2100, 900);
+    const styles = new StyleController();
+    const analysis = {
+      kind: 'detected' as const,
+      content: { left: 0, top: 0, right: 1, bottom: 1 },
+      isBlackFrame: false,
+    };
+    styles.apply(video, container, analysis);
+    expect(video.style.transform).toContain(' translateX(-100px)');
+    sheet.textContent = '.embedded-video { transform: translateX(-200px); transform-origin: 50% 50%; }';
+    styles.apply(video, container, analysis);
+    expect(video.style.transform).toContain(' translateX(-200px)');
+    styles.restore();
+    expect(video.style.transform).toBe('');
+    expect(video.style.transformOrigin).toBe('');
+    expect(getComputedStyle(video).transform).toBe('translateX(-200px)');
+  });
+
+  it('uses and restores the player’s updated transform', async () => {
+    const container = document.createElement('div');
+    const video = document.createElement('video');
+    container.append(video);
+    document.body.append(container);
+    video.style.objectFit = 'contain';
+    Object.defineProperties(video, {
+      videoWidth: { value: 1920, configurable: true },
+      videoHeight: { value: 1080, configurable: true },
+    });
+    video.getBoundingClientRect = () => new DOMRect(0, 0, 2100, 900);
+    const styles = new StyleController();
+    const analysis = {
+      kind: 'detected' as const,
+      content: { left: 0, top: 0, right: 1, bottom: 1 },
+      isBlackFrame: false,
+    };
+    styles.apply(video, container, analysis);
+    video.style.setProperty('transform', 'translateX(20px)', 'important');
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    styles.apply(video, container, analysis);
+    expect(video.style.transform).toContain(' translateX(20px)');
+    styles.restore();
+    expect(video.style.transform).toBe('translateX(20px)');
+    expect(video.style.getPropertyPriority('transform')).toBe('important');
+  });
+
   it('conceals fullscreen entry until the first transform is ready', () => {
     const container = document.createElement('div');
     const video = document.createElement('video');
@@ -179,13 +299,22 @@ describe('StyleController', () => {
     });
     expect(video.style.getPropertyValue('transition')).toBe('transform 150ms ease-out');
 
-    const setProperty = vi.spyOn(video.style, 'setProperty');
+    const establishedTransform = video.style.getPropertyValue('transform');
+    let measurements = 0;
+    video.getBoundingClientRect = () => {
+      measurements++;
+      return new DOMRect(0, 0, 2100, 900);
+    };
+    Object.defineProperty(video, 'getAnimations', {
+      value: () => [{ transitionProperty: 'transform', playState: 'running' }],
+    });
     styles.apply(video, container, {
       kind: 'detected',
       content: { left: 0, top: 0.125, right: 1, bottom: 0.875 },
       isBlackFrame: false,
     });
-    expect(setProperty.mock.calls.some(([property]) => property === 'transform')).toBe(false);
+    expect(video.style.getPropertyValue('transform')).toBe(establishedTransform);
+    expect(measurements).toBe(0);
   });
 
   it('keeps established zoom changes instant when animation is disabled', () => {
