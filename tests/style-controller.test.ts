@@ -52,7 +52,7 @@ describe('StyleController', () => {
     expect(video.style.transform).toBe('translate(-50%, -50%)');
   });
 
-  it('updates centering when the player moves without resizing', () => {
+  it('updates centering when the player moves without resizing', async () => {
     const container = document.createElement('div');
     const video = document.createElement('video');
     container.append(video);
@@ -72,6 +72,8 @@ describe('StyleController', () => {
     };
     styles.apply(video, container, analysis);
     left = 350;
+    video.style.left = '350px';
+    await new Promise((resolve) => setTimeout(resolve, 0));
     expect(styles.apply(video, container, analysis)?.changed).toBe(true);
     expect(video.style.transform).toBe('translate3d(-100px, 0px, 0) scale(1)');
     styles.restore();
@@ -100,7 +102,7 @@ describe('StyleController', () => {
     styles.apply(video, container, analysis);
     expect(video.style.transform).toContain(' translateX(-100px)');
     sheet.textContent = '.embedded-video { transform: translateX(-200px); transform-origin: 50% 50%; }';
-    styles.apply(video, container, analysis);
+    styles.apply(video, container, analysis, true);
     expect(video.style.transform).toContain(' translateX(-200px)');
     styles.restore();
     expect(video.style.transform).toBe('');
@@ -544,7 +546,10 @@ describe('StyleController', () => {
     });
 
     const overlay = document.querySelector<HTMLElement>('[data-smart-ultrawide-debug="content"]');
+    const status = document.querySelector<HTMLElement>('[data-smart-ultrawide-debug="status"]');
     expect(video.style.getPropertyValue('transform')).toBe('');
+    expect(overlay?.parentElement).toBe(container);
+    expect(status?.parentElement).toBe(container);
     expect(overlay?.style.left).toBe('250px');
     expect(overlay?.style.top).toBe('112.5px');
     expect(overlay?.style.width).toBe('1600px');

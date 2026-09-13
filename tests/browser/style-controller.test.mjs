@@ -116,6 +116,26 @@ test('fullscreen layout settling removes entry zoom instead of compounding it', 
   }
 });
 
+test('repeated analyzed frames do not remove and restore an established zoom', async () => {
+  const mutations = await fixture(async () => {
+    controller.setZoomAnimationEnabled(true);
+    apply(false);
+    await tick();
+    apply(true);
+    await new Promise((resolve) => setTimeout(resolve, 200));
+    const values = [];
+    const observer = new MutationObserver(() => values.push(video.style.transform));
+    observer.observe(video, { attributes: true, attributeFilter: ['style'] });
+    for (let i = 0; i < 6; i++) {
+      apply(true);
+      await tick();
+    }
+    observer.disconnect();
+    return values;
+  });
+  assert.deepEqual(mutations, []);
+});
+
 test('position and player transform updates remain reversible', async () => {
   const result = await fixture(async () => {
     apply();

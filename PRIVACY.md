@@ -1,16 +1,17 @@
 # Privacy Policy for Smart Ultrawide Video
 
-Effective date: August 21, 2026
+Effective date: September 13, 2026
 
 Smart Ultrawide Video is designed to remove black bars from fullscreen HTML5
 videos. It performs its work locally in the user's browser.
 
 ## Information processed
 
-While the extension is enabled and a video is fullscreen, it temporarily
-samples a small representation of video-frame pixels to detect black bars and
-calculate an appropriate zoom level. These pixels are processed in memory and
-are not retained after analysis.
+While the extension is enabled, it temporarily samples a small representation
+of fullscreen video-frame pixels to detect black bars and calculate an
+appropriate zoom level. When the user explicitly enables debug view, this local
+sampling also applies to inline videos so the detected rectangle can be shown.
+These pixels are processed in memory and are not retained after analysis.
 
 The extension stores only the user's extension preferences, such as whether it
 is enabled, analysis frequency, zoom tolerance, zoom-out delay, and animation

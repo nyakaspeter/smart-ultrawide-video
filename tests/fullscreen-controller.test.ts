@@ -110,4 +110,54 @@ describe('FullscreenController', () => {
       .toBe('Black frame • 0.44% above threshold • rectangle held');
     controller.stop();
   });
+
+  it('analyzes an inline video in debug view without applying zoom', () => {
+    const video = document.createElement('video');
+    document.body.append(video);
+    video.style.objectFit = 'contain';
+    video.style.opacity = '1';
+    Object.defineProperties(video, {
+      paused: { value: true, configurable: true },
+      videoWidth: { value: 1920, configurable: true },
+      videoHeight: { value: 1080, configurable: true },
+    });
+    video.getBoundingClientRect = () => new DOMRect(250, 0, 1600, 900);
+
+    const analyze = vi.fn((): FrameAnalysis => ({
+      kind: 'detected',
+      content: { left: 0, top: 0.125, right: 1, bottom: 0.875 },
+      isBlackFrame: false,
+    }));
+    const controller = new FullscreenController({
+      analyze,
+      setBlackBarLumaThreshold: vi.fn(),
+      setLogoTolerancePercent: vi.fn(),
+    } as unknown as FrameAnalyzer);
+    controller.setPreferences({ ...DEFAULT_SETTINGS, debugViewEnabled: true });
+    controller.start();
+
+    expect(analyze).toHaveBeenCalled();
+    expect(video.style.transform).toBe('');
+    expect(document.querySelector('[data-smart-ultrawide-debug="content"]')).not.toBeNull();
+    controller.stop();
+  });
+
+  it('does not inspect inline videos outside debug view', () => {
+    const video = document.createElement('video');
+    document.body.append(video);
+    video.style.opacity = '1';
+    video.getBoundingClientRect = () => new DOMRect(0, 0, 1600, 900);
+    const analyze = vi.fn();
+    const controller = new FullscreenController({
+      analyze,
+      setBlackBarLumaThreshold: vi.fn(),
+      setLogoTolerancePercent: vi.fn(),
+    } as unknown as FrameAnalyzer);
+    controller.setPreferences(DEFAULT_SETTINGS);
+    controller.start();
+
+    expect(analyze).not.toHaveBeenCalled();
+    expect(video.style.cssText).toBe('opacity: 1;');
+    controller.stop();
+  });
 });

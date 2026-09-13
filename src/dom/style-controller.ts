@@ -16,6 +16,7 @@ interface SavedProperty {
 
 const VIDEO_PROPERTIES = ['transform', 'transform-origin', 'transition', 'will-change', 'visibility'] as const;
 const CONTAINER_PROPERTIES = ['overflow'] as const;
+const INLINE_GEOMETRY_PROPERTIES = ['left', 'top', 'right', 'bottom', 'width', 'height', 'object-fit'] as const;
 const ZOOM_TRANSITION = 'transform 150ms ease-out';
 
 export interface AppliedZoom {
@@ -43,6 +44,12 @@ function restoreProperties(style: CSSStyleDeclaration, saved: Map<string, SavedP
   }
 }
 
+function inlineGeometrySignature(video: HTMLVideoElement): string {
+  return INLINE_GEOMETRY_PROPERTIES
+    .map((property) => `${property}:${video.style.getPropertyValue(property)}`)
+    .join(';');
+}
+
 export class StyleController {
   private video: HTMLVideoElement | null = null;
   private container: HTMLElement | null = null;
@@ -67,6 +74,8 @@ export class StyleController {
   private debugOverlay: HTMLDivElement | null = null;
   private debugStatus: HTMLDivElement | null = null;
   private videoStyleObserver: MutationObserver | null = null;
+  private nativeGeometryDirty = false;
+  private lastInlineGeometry = '';
   private entryConcealed = false;
 
   constructor(private readonly now: () => number = () => performance.now()) {}
@@ -140,28 +149,21 @@ export class StyleController {
     if (!this.video) this.initialize(video, fullscreenElement);
     if (this.entryConcealed) this.revealEntry();
 
-    // Measure the player's current positioning without our adjustment. Position
-    // changes alone do not trigger ResizeObserver (common during embed entry).
-    const previousBox = this.elementBox;
-    const previousNativeTransform = this.nativeTransform;
-    const previousNativeOrigin = this.nativeOrigin;
-    // Let an active zoom transition finish before temporarily removing it for
-    // measurement. Forced viewport updates still take effect immediately.
-    const animating = !force && this.elementBox !== null && video.getAnimations?.().some(
-      (animation) => 'transitionProperty' in animation
-        && animation.transitionProperty === 'transform'
-        && animation.playState === 'running',
-    );
-    if (!animating) this.measureNativeGeometry(video);
-    const geometryChanged = previousBox !== null && (
-      previousBox.left !== this.elementBox!.left
-      || previousBox.top !== this.elementBox!.top
-      || previousBox.width !== this.elementBox!.width
-      || previousBox.height !== this.elementBox!.height
-      || previousNativeTransform !== this.nativeTransform
-      || previousNativeOrigin !== this.nativeOrigin
-    );
-    force ||= geometryChanged;
+    // Reading native geometry requires temporarily removing our transform.
+    // Never do that for ordinary sampled frames: forcing style/layout between
+    // the native and zoomed states can restart Chrome's compositor transition.
+    // Resize events force a measurement, while page-authored inline style
+    // mutations mark the cached native geometry dirty.
+    const inlineGeometry = inlineGeometrySignature(video);
+    if (inlineGeometry !== this.lastInlineGeometry) {
+      this.lastInlineGeometry = inlineGeometry;
+      force = true;
+    }
+    if (this.nativeGeometryDirty) force = true;
+    if (this.elementBox === null || force) {
+      this.measureNativeGeometry(video);
+      this.nativeGeometryDirty = false;
+    }
 
     const computed = getComputedStyle(video);
     const objectFit = (['contain', 'cover', 'fill', 'none', 'scale-down'].includes(computed.objectFit)
@@ -264,6 +266,8 @@ export class StyleController {
     if (this.video) this.capturePlayerStyles(this.video);
     this.videoStyleObserver?.disconnect();
     this.videoStyleObserver = null;
+    this.nativeGeometryDirty = false;
+    this.lastInlineGeometry = '';
     this.restoreSavedValues();
     this.video = null;
     this.container = null;
@@ -312,7 +316,7 @@ export class StyleController {
         'font:12px/1.35 system-ui,sans-serif',
         'box-shadow:0 2px 12px rgba(0,0,0,.45)',
       ].join(';');
-      document.documentElement.append(status);
+      this.debugOverlayHost().append(status);
       this.debugStatus = status;
     }
     status.style.border = `1px solid ${colors[state]}`;
@@ -339,7 +343,7 @@ export class StyleController {
         'background:rgba(25,215,255,.18)',
         'box-shadow:0 0 0 1px rgba(0,0,0,.7),inset 0 0 24px rgba(25,215,255,.12)',
       ].join(';');
-      document.documentElement.append(overlay);
+      this.debugOverlayHost().append(overlay);
       this.debugOverlay = overlay;
     }
     overlay.style.left = `${box.left}px`;
@@ -355,10 +359,20 @@ export class StyleController {
     this.debugStatus = null;
   }
 
+  private debugOverlayHost(): HTMLElement {
+    // Only the fullscreen element and its descendants participate in the
+    // fullscreen top layer. This matters especially for embedded players,
+    // whose content script runs in the iframe document.
+    return this.container && this.container !== this.video
+      ? this.container
+      : document.documentElement;
+  }
+
   private initialize(video: HTMLVideoElement, fullscreenElement: Element): void {
     this.video = video;
     this.container = fullscreenElement instanceof HTMLElement ? fullscreenElement : null;
     this.videoStyles = saveProperties(video.style, VIDEO_PROPERTIES);
+    this.lastInlineGeometry = inlineGeometrySignature(video);
     if (this.container) this.containerStyles = saveProperties(this.container.style, CONTAINER_PROPERTIES);
     this.observeVideoStyle(video);
   }
@@ -367,6 +381,7 @@ export class StyleController {
     if (typeof MutationObserver !== 'function') return;
     this.videoStyleObserver = new MutationObserver(() => {
       this.capturePlayerStyles(video);
+      this.nativeGeometryDirty = true;
       this.enforceAppliedStyles();
     });
     this.videoStyleObserver.observe(video, { attributes: true, attributeFilter: ['style'] });
@@ -391,17 +406,23 @@ export class StyleController {
       }
     };
 
-    setImportant('transform-origin', this.nativeOrigin);
-    setImportant('transition', this.appliedTransition);
-    setImportant('transform', this.appliedTransform);
-    setImportant('will-change', 'transform');
-    if (
-      this.container
-      && (
-        this.container.style.getPropertyValue('overflow') !== 'hidden'
-        || this.container.style.getPropertyPriority('overflow') !== 'important'
-      )
-    ) this.container.style.setProperty('overflow', 'hidden', 'important');
+    // Do not observe our own enforcement writes as player geometry changes.
+    this.videoStyleObserver?.disconnect();
+    try {
+      setImportant('transform-origin', this.nativeOrigin);
+      setImportant('transition', this.appliedTransition);
+      setImportant('transform', this.appliedTransform);
+      setImportant('will-change', 'transform');
+      if (
+        this.container
+        && (
+          this.container.style.getPropertyValue('overflow') !== 'hidden'
+          || this.container.style.getPropertyPriority('overflow') !== 'important'
+        )
+      ) this.container.style.setProperty('overflow', 'hidden', 'important');
+    } finally {
+      this.videoStyleObserver?.observe(this.video, { attributes: true, attributeFilter: ['style'] });
+    }
   }
 
   private restoreSavedValues(): void {

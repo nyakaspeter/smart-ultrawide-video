@@ -18,6 +18,7 @@ export class FullscreenController {
   private resizeObserver: ResizeObserver | null = null;
   private videoTreeObserver: MutationObserver | null = null;
   private debugViewEnabled = false;
+  private started = false;
 
   constructor(private readonly analyzer: FrameAnalyzer) {
     this.sampler = new FrameSampler(analyzer);
@@ -36,23 +37,34 @@ export class FullscreenController {
     this.styles.setDebugView(settings.debugViewEnabled);
     this.analysisIntervalMs = settings.analysisIntervalMs;
     this.sampler.setAnalysisInterval(settings.analysisIntervalMs);
-    if (debugViewChanged && this.activeVideo && this.activeAnalysis) {
-      this.apply(this.activeAnalysis, 'viewport-resize');
+    if (debugViewChanged && this.started) {
+      const fullscreenRoot = findFullscreenRoot();
+      if (!fullscreenRoot && settings.debugViewEnabled) {
+        this.enter(document.documentElement);
+      } else if (!fullscreenRoot) {
+        this.exit();
+      } else if (this.activeVideo && this.activeAnalysis) {
+        this.apply(this.activeAnalysis, 'viewport-resize');
+      }
     }
   }
 
   start(): void {
+    if (this.started) return;
+    this.started = true;
     document.addEventListener('fullscreenchange', this.onFullscreenChange, true);
     document.addEventListener('webkitfullscreenchange', this.onFullscreenChange, true);
     window.addEventListener('resize', this.onResize, { passive: true });
     window.addEventListener('orientationchange', this.onResize, { passive: true });
     window.visualViewport?.addEventListener('resize', this.onResize, { passive: true });
 
-    const root = findFullscreenRoot();
+    const root = this.activeRoot();
     if (root) this.enter(root);
   }
 
   stop(): void {
+    if (!this.started) return;
+    this.started = false;
     document.removeEventListener('fullscreenchange', this.onFullscreenChange, true);
     document.removeEventListener('webkitfullscreenchange', this.onFullscreenChange, true);
     window.removeEventListener('resize', this.onResize);
@@ -64,15 +76,16 @@ export class FullscreenController {
   private onFullscreenChange = (): void => {
     const root = findFullscreenRoot();
     if (root) this.enter(root);
+    else if (this.debugViewEnabled) this.enter(document.documentElement);
     else this.exit();
   };
 
   private enter(root: Element): void {
     this.exit();
+    this.observeVideoTree(root);
     const video = selectDominantVideo(root);
     if (!video) return;
 
-    this.observeVideoTree(root);
     this.activateVideo(root, video);
   }
 
@@ -86,7 +99,7 @@ export class FullscreenController {
     this.activeVideo = video;
     this.activeAnalysis = null;
     video.addEventListener('loadstart', this.onVideoLoadStart);
-    this.styles.beginEntry(video, root);
+    if (!this.debugViewEnabled) this.styles.beginEntry(video, root);
     this.observeGeometry(root, video);
 
     // Analyze the already-decoded frame immediately, then analyze every new
@@ -110,14 +123,14 @@ export class FullscreenController {
   }
 
   private onVideoLoadStart = (): void => {
-    const root = findFullscreenRoot();
+    const root = this.activeRoot();
     const video = this.activeVideo;
     if (!root || !video || !video.isConnected) return;
     this.activateVideo(root, video);
   };
 
   private onFrame = (analysis: FrameAnalysis): void => {
-    if (!this.activeVideo || !findFullscreenRoot()) return;
+    if (!this.activeVideo || !this.activeRoot()) return;
 
     if (analysis.kind === 'unreadable') {
       this.styles.showDebugStatus('unreadable', undefined, analysis.reason);
@@ -137,7 +150,7 @@ export class FullscreenController {
   };
 
   private apply(analysis: DetectedFrame, trigger: 'video-frame' | 'viewport-resize'): void {
-    const root = findFullscreenRoot();
+    const root = this.activeRoot();
     if (!root || !this.activeVideo) return;
 
     const result = this.styles.apply(
@@ -157,7 +170,7 @@ export class FullscreenController {
   }
 
   private onResize = (): void => {
-    const root = findFullscreenRoot();
+    const root = this.activeRoot();
     if (!root) {
       if (this.activeVideo) this.exit();
       return;
@@ -201,16 +214,31 @@ export class FullscreenController {
           || (node instanceof Element && node.querySelector('video') !== null)));
       if (!touchesVideo) return;
 
-      const currentRoot = findFullscreenRoot();
+      const currentRoot = this.activeRoot();
       if (!currentRoot) return;
       const video = selectDominantVideo(currentRoot);
-      if (video && video !== this.activeVideo) this.activateVideo(currentRoot, video);
+      if (video && video !== this.activeVideo) {
+        this.activateVideo(currentRoot, video);
+      } else if (!video && this.activeVideo) {
+        this.sampler.stop();
+        this.detachVideoEvents();
+        this.styles.restore();
+        this.resizeObserver?.disconnect();
+        this.resizeObserver = null;
+        this.activeVideo = null;
+        this.activeAnalysis = null;
+      }
     });
     this.videoTreeObserver.observe(root, { childList: true, subtree: true });
   }
 
   private detachVideoEvents(): void {
     this.activeVideo?.removeEventListener('loadstart', this.onVideoLoadStart);
+  }
+
+  private activeRoot(): Element | null {
+    return findFullscreenRoot()
+      ?? (this.debugViewEnabled ? document.documentElement : null);
   }
 
   private logZoomChange(result: AppliedZoom): void {
